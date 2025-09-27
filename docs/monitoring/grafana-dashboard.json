@@ -1,0 +1,159 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "PuffPass Web3 Health Monitoring",
+    "tags": ["web3", "health", "compliance"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Web3 Connection Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "SELECT CASE WHEN connection_successes > 0 THEN 'Connected' ELSE 'Disconnected' END as status FROM web3_health_metrics ORDER BY timestamp DESC LIMIT 1",
+            "legendFormat": "Status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [{ "color": "red", "value": 0 }, { "color": "green", "value": 1 }]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "Uptime Percentage (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "SELECT AVG(uptime_percentage) as uptime FROM web3_health_metrics WHERE timestamp >= NOW() - INTERVAL '24 hours'",
+            "legendFormat": "Uptime %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": 0 },
+                { "color": "yellow", "value": 95 },
+                { "color": "green", "value": 99 }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 }
+      },
+      {
+        "id": 3,
+        "title": "Error Rate (1h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "SELECT (SUM(connection_errors) * 100.0 / NULLIF(SUM(connection_attempts), 0)) as error_rate FROM web3_health_metrics WHERE timestamp >= NOW() - INTERVAL '1 hour'",
+            "legendFormat": "Error Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": 0 },
+                { "color": "yellow", "value": 5 },
+                { "color": "red", "value": 10 }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 }
+      },
+      {
+        "id": 4,
+        "title": "Average Latency",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "SELECT AVG(avg_latency_ms) as latency FROM web3_health_metrics WHERE timestamp >= NOW() - INTERVAL '1 hour'",
+            "legendFormat": "Avg Latency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": 0 },
+                { "color": "yellow", "value": 1000 },
+                { "color": "red", "value": 3000 }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 }
+      },
+      {
+        "id": 5,
+        "title": "Connection Success Rate (24h)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "SELECT timestamp, (connection_successes * 100.0 / NULLIF(connection_attempts, 0)) as success_rate FROM web3_health_metrics WHERE timestamp >= NOW() - INTERVAL '24 hours' ORDER BY timestamp",
+            "legendFormat": "Success Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }
+      },
+      {
+        "id": 6,
+        "title": "Latency Trends (24h)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "SELECT timestamp, avg_latency_ms as avg_latency, max_latency_ms as max_latency FROM web3_health_metrics WHERE timestamp >= NOW() - INTERVAL '24 hours' ORDER BY timestamp",
+            "legendFormat": "{{.Field}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }
+      },
+      {
+        "id": 7,
+        "title": "Recent Errors",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "SELECT timestamp, last_error FROM web3_health_metrics WHERE last_error IS NOT NULL ORDER BY timestamp DESC LIMIT 50",
+            "legendFormat": "Error Log"
+          }
+        ],
+        "gridPos": { "h": 6, "w": 24, "x": 0, "y": 12 }
+      }
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

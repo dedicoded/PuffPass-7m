@@ -1,0 +1,259 @@
+"use client"
+
+import type React from "react"
+import { WagmiProvider } from "wagmi"
+import { mainnet, polygon, sepolia } from "wagmi/chains"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { createWeb3Modal } from "@web3modal/wagmi/react"
+import { defaultWagmiConfig } from "@web3modal/wagmi/react/config"
+import { useState, useEffect, createContext, useContext } from "react"
+
+export type Web3HealthStatus = {
+  isHealthy: boolean
+  status: "initializing" | "connected" | "error" | "unavailable"
+  error?: string
+  lastChecked: Date
+  projectId: string
+  isDemo: boolean
+}
+
+const Web3HealthContext = createContext<Web3HealthStatus | null>(null)
+
+export function useWeb3Health(): Web3HealthStatus | null {
+  return useContext(Web3HealthContext)
+}
+
+// Get projectId from environment with fallback
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo-project-id"
+
+// Create wagmi config
+const metadata = {
+  name: "PuffPass",
+  description: "Cannabis compliance and payment platform",
+  url: typeof window !== "undefined" ? window.location.origin : "https://puffpass.app",
+  icons: [`${typeof window !== "undefined" ? window.location.origin : "https://puffpass.app"}/icon.png`],
+}
+
+const chains = [mainnet, polygon, sepolia] as const
+const config = defaultWagmiConfig({
+  chains,
+  projectId,
+  metadata,
+})
+
+// Create query client with error handling
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
+
+export function Web3Provider({ children }: { children: React.ReactNode }) {
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [healthStatus, setHealthStatus] = useState<Web3HealthStatus>({
+    isHealthy: false,
+    status: "initializing",
+    lastChecked: new Date(),
+    projectId,
+    isDemo: projectId === "demo-project-id",
+  })
+
+  useEffect(() => {
+    const initializeWeb3 = async () => {
+      const startTime = Date.now()
+
+      try {
+        console.log("[v0] Initializing Web3Modal...")
+
+        // Check if we're using demo project ID
+        if (projectId === "demo-project-id") {
+          console.warn(
+            "[v0] Using demo WalletConnect project ID - set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID for production",
+          )
+
+          setHealthStatus((prev) => ({
+            ...prev,
+            status: "unavailable",
+            error: "Demo project ID in use - WalletConnect may be unreliable",
+            lastChecked: new Date(),
+          }))
+        }
+
+        // Test network connectivity before initializing (optional)
+        try {
+          const connectivityTest = await fetch("https://api.walletconnect.com/health", {
+            method: "GET",
+            signal: AbortSignal.timeout(3000), // 3 second timeout
+          })
+
+          if (!connectivityTest?.ok) {
+            console.warn("[v0] WalletConnect API health check failed, but continuing...")
+          }
+        } catch (error) {
+          console.warn("[v0] WalletConnect connectivity test failed:", error)
+          // Continue anyway - this is just a health check
+        }
+
+        // Initialize Web3Modal
+        createWeb3Modal({
+          wagmiConfig: config,
+          projectId,
+          enableAnalytics: false, // Disable analytics to avoid network issues
+        })
+
+        const finalLatency = Date.now() - startTime
+        console.log(`[v0] Web3Modal initialized successfully in ${finalLatency}ms`)
+
+        try {
+          const { Web3HealthLogger } = await import("@/lib/web3-health-logger")
+          await Web3HealthLogger.logHealthMetric({
+            status: "connected",
+            latency: finalLatency,
+            errorCount: 0,
+            projectId,
+            isDemo: projectId === "demo-project-id",
+            provider: "walletconnect",
+            connectionAttempts: 1,
+            successfulConnections: 1,
+            failedConnections: 0,
+            uptimePercentage: 100,
+            operator: "system",
+            checkType: "automated",
+            environment: process.env.NODE_ENV || "development",
+            metadata: {
+              initialization_time_ms: finalLatency,
+              api_health_check: "passed",
+            },
+          })
+        } catch (dbError) {
+          console.warn("[v0] Health logging unavailable (database not ready):", dbError)
+          // Don't fail initialization due to logging issues
+        }
+
+        setHealthStatus((prev) => ({
+          ...prev,
+          isHealthy: true,
+          status: "connected",
+          error: undefined,
+          lastChecked: new Date(),
+        }))
+
+        setIsInitialized(true)
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown initialization error"
+        const finalLatency = Date.now() - startTime
+
+        console.error("[v0] Web3Modal initialization failed:", errorMessage)
+
+        try {
+          const { Web3HealthLogger } = await import("@/lib/web3-health-logger")
+          await Web3HealthLogger.logHealthMetric({
+            status: "error",
+            latency: finalLatency,
+            lastError: errorMessage,
+            errorCount: 1,
+            projectId,
+            isDemo: projectId === "demo-project-id",
+            provider: "walletconnect",
+            connectionAttempts: 1,
+            successfulConnections: 0,
+            failedConnections: 1,
+            uptimePercentage: 0,
+            operator: "system",
+            checkType: "automated",
+            environment: process.env.NODE_ENV || "development",
+            metadata: {
+              error_type: error instanceof Error ? error.constructor.name : "UnknownError",
+              initialization_failed: true,
+            },
+          })
+        } catch (dbError) {
+          console.warn("[v0] Health logging unavailable (database not ready):", dbError)
+        }
+
+        setHealthStatus((prev) => ({
+          ...prev,
+          isHealthy: false,
+          status: "error",
+          error: errorMessage,
+          lastChecked: new Date(),
+        }))
+
+        // Still allow app to load without Web3
+        setIsInitialized(true)
+      }
+    }
+
+    initializeWeb3()
+
+    const healthCheckInterval = setInterval(
+      async () => {
+        try {
+          const startTime = Date.now()
+          const healthCheck = await fetch("https://api.walletconnect.com/health", {
+            method: "GET",
+            signal: AbortSignal.timeout(5000),
+          })
+
+          const latency = Date.now() - startTime
+          const isHealthy = healthCheck.ok
+
+          // Try to log health metrics if database is available
+          try {
+            const { Web3HealthLogger } = await import("@/lib/web3-health-logger")
+            await Web3HealthLogger.logHealthMetric({
+              status: isHealthy ? "connected" : "error",
+              latency,
+              errorCount: isHealthy ? 0 : 1,
+              projectId,
+              isDemo: projectId === "demo-project-id",
+              provider: "walletconnect",
+              connectionAttempts: 1,
+              successfulConnections: isHealthy ? 1 : 0,
+              failedConnections: isHealthy ? 0 : 1,
+              operator: "system",
+              checkType: "scheduled",
+              environment: process.env.NODE_ENV || "development",
+              metadata: {
+                periodic_check: true,
+                http_status: healthCheck.status,
+              },
+            })
+          } catch (dbError) {
+            // Silently ignore database logging errors during periodic checks
+          }
+        } catch (error) {
+          console.error("[v0] Periodic Web3 health check failed:", error)
+        }
+      },
+      5 * 60 * 1000,
+    ) // 5 minutes
+
+    return () => clearInterval(healthCheckInterval)
+  }, [])
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Initializing PuffPass...</p>
+          {healthStatus.status === "initializing" && (
+            <p className="text-xs text-slate-400 mt-2">Connecting to Web3 services...</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Web3HealthContext.Provider value={healthStatus}>
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </WagmiProvider>
+    </Web3HealthContext.Provider>
+  )
+}

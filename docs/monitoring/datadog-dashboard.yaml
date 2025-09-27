@@ -1,0 +1,143 @@
+title: "PuffPass Web3 Health Monitoring"
+description: "Real-time monitoring of Web3 connection health and performance"
+template_variables: []
+layout_type: "ordered"
+widgets:
+  - definition:
+      title: "Web3 Connection Status"
+      type: "query_value"
+      requests:
+        - q: "SELECT CASE WHEN connection_successes > 0 THEN 1 ELSE 0 END FROM web3_health_metrics ORDER BY timestamp DESC LIMIT 1"
+          aggregator: "last"
+      autoscale: true
+      precision: 0
+      text_align: "center"
+      custom_links: []
+      title_size: "16"
+      title_align: "left"
+    layout:
+      x: 0
+      y: 0
+      width: 3
+      height: 2
+
+  - definition:
+      title: "Uptime Percentage (24h)"
+      type: "query_value"
+      requests:
+        - q: "SELECT AVG(uptime_percentage) FROM web3_health_metrics WHERE timestamp >= NOW() - INTERVAL '24 hours'"
+          aggregator: "avg"
+      autoscale: true
+      precision: 2
+      text_align: "center"
+      conditional_formats:
+        - comparator: ">="
+          value: 99
+          palette: "green_on_white"
+        - comparator: ">="
+          value: 95
+          palette: "yellow_on_white"
+        - comparator: "<"
+          value: 95
+          palette: "red_on_white"
+    layout:
+      x: 3
+      y: 0
+      width: 3
+      height: 2
+
+  - definition:
+      title: "Error Rate (1h)"
+      type: "query_value"
+      requests:
+        - q: "SELECT (SUM(connection_errors) * 100.0 / NULLIF(SUM(connection_attempts), 0)) FROM web3_health_metrics WHERE timestamp >= NOW() - INTERVAL '1 hour'"
+          aggregator: "last"
+      autoscale: true
+      precision: 2
+      text_align: "center"
+      conditional_formats:
+        - comparator: "<"
+          value: 5
+          palette: "green_on_white"
+        - comparator: "<"
+          value: 10
+          palette: "yellow_on_white"
+        - comparator: ">="
+          value: 10
+          palette: "red_on_white"
+    layout:
+      x: 6
+      y: 0
+      width: 3
+      height: 2
+
+  - definition:
+      title: "Average Latency (1h)"
+      type: "query_value"
+      requests:
+        - q: "SELECT AVG(avg_latency_ms) FROM web3_health_metrics WHERE timestamp >= NOW() - INTERVAL '1 hour'"
+          aggregator: "avg"
+      autoscale: true
+      precision: 0
+      text_align: "center"
+      conditional_formats:
+        - comparator: "<"
+          value: 1000
+          palette: "green_on_white"
+        - comparator: "<"
+          value: 3000
+          palette: "yellow_on_white"
+        - comparator: ">="
+          value: 3000
+          palette: "red_on_white"
+    layout:
+      x: 9
+      y: 0
+      width: 3
+      height: 2
+
+  - definition:
+      title: "Connection Success Rate Trend"
+      type: "timeseries"
+      requests:
+        - q: "SELECT (connection_successes * 100.0 / NULLIF(connection_attempts, 0)) FROM web3_health_metrics"
+          display_type: "line"
+          style:
+            palette: "dog_classic"
+            line_type: "solid"
+            line_width: "normal"
+      yaxis:
+        min: "0"
+        max: "100"
+        scale: "linear"
+      show_legend: false
+    layout:
+      x: 0
+      y: 2
+      width: 6
+      height: 3
+
+  - definition:
+      title: "Latency Trends"
+      type: "timeseries"
+      requests:
+        - q: "SELECT avg_latency_ms FROM web3_health_metrics"
+          display_type: "line"
+          style:
+            palette: "cool"
+            line_type: "solid"
+            line_width: "normal"
+        - q: "SELECT max_latency_ms FROM web3_health_metrics"
+          display_type: "line"
+          style:
+            palette: "warm"
+            line_type: "dashed"
+            line_width: "normal"
+      yaxis:
+        scale: "linear"
+      show_legend: true
+    layout:
+      x: 6
+      y: 2
+      width: 6
+      height: 3

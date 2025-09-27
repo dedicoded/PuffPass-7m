@@ -1,0 +1,156 @@
+{
+  "dashboard": {
+    "title": "PuffPass SLA Compliance Dashboard",
+    "description": "Customer-facing service tier performance tracking",
+    "tags": ["sla", "customer", "compliance"],
+    "panels": [
+      {
+        "title": "SLA Compliance Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "web3_uptime_percentage_24h",
+            "legendFormat": "Current Uptime %"
+          }
+        ],
+        "fieldConfig": {
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 99.0 },
+              { "color": "yellow", "value": 99.5 },
+              { "color": "green", "value": 99.9 }
+            ]
+          }
+        },
+        "displayName": "24h Uptime"
+      },
+      {
+        "title": "Service Tier Performance",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "web3_sla_compliance_by_tier",
+            "format": "table"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "columns": [
+                { "text": "Tier", "value": "tier" },
+                { "text": "Uptime SLA", "value": "uptime_sla" },
+                { "text": "Current Uptime", "value": "current_uptime" },
+                { "text": "Error Rate SLA", "value": "error_sla" },
+                { "text": "Current Error Rate", "value": "current_error_rate" },
+                { "text": "Status", "value": "compliance_status" }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "title": "Bronze Tier Compliance",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "web3_tier_compliance{tier=\"bronze\"}",
+            "legendFormat": "Bronze SLA"
+          }
+        ],
+        "fieldConfig": {
+          "min": 95,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 95 },
+              { "color": "yellow", "value": 99.0 },
+              { "color": "green", "value": 99.0 }
+            ]
+          }
+        }
+      },
+      {
+        "title": "Silver Tier Compliance",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "web3_tier_compliance{tier=\"silver\"}",
+            "legendFormat": "Silver SLA"
+          }
+        ],
+        "fieldConfig": {
+          "min": 97,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 97 },
+              { "color": "yellow", "value": 99.5 },
+              { "color": "green", "value": 99.5 }
+            ]
+          }
+        }
+      },
+      {
+        "title": "Gold Tier Compliance",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "web3_tier_compliance{tier=\"gold\"}",
+            "legendFormat": "Gold SLA"
+          }
+        ],
+        "fieldConfig": {
+          "min": 99,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 99 },
+              { "color": "yellow", "value": 99.9 },
+              { "color": "green", "value": 99.9 }
+            ]
+          }
+        }
+      },
+      {
+        "title": "SLA Breach History",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "web3_sla_breaches_last_30d",
+            "format": "table"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "columns": [
+                { "text": "Date", "value": "breach_date" },
+                { "text": "Tier", "value": "affected_tier" },
+                { "text": "Metric", "value": "breach_metric" },
+                { "text": "Duration", "value": "breach_duration" },
+                { "text": "Credit Applied", "value": "credit_amount" }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "title": "Monthly SLA Credits",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum by (tier) (web3_sla_credits_monthly)",
+            "legendFormat": "{{tier}} Credits"
+          }
+        ],
+        "fieldConfig": {
+          "displayMode": "basic",
+          "orientation": "horizontal"
+        }
+      }
+    ]
+  }
+}

@@ -35,9 +35,12 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <button className="w-full max-w-md bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6">
+              <a
+                href="/login?role=customer"
+                className="w-full max-w-md bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6 inline-block text-center"
+              >
                 Select Cannabis Customer
-              </button>
+              </a>
             </div>
           </div>
 
@@ -61,9 +64,12 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <button className="w-full max-w-md bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6">
+              <a
+                href="/login?role=merchant"
+                className="w-full max-w-md bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6 inline-block text-center"
+              >
                 Select Cannabis Merchant
-              </button>
+              </a>
             </div>
           </div>
 
@@ -85,9 +91,12 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <button className="w-full max-w-md bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6">
+              <a
+                href="/login?role=admin"
+                className="w-full max-w-md bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6 inline-block text-center"
+              >
                 Select Platform Admin
-              </button>
+              </a>
             </div>
           </div>
         </div>

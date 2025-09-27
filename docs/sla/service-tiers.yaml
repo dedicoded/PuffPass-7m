@@ -1,0 +1,66 @@
+# PuffPass Web3 Infrastructure - Service Level Agreements
+# Maps operational metrics to customer-facing service tiers
+
+service_tiers:
+  bronze:
+    name: "Bronze - Standard"
+    target_market: "Individual users, small businesses"
+    pricing_tier: "Standard"
+    commitments:
+      uptime: "99.0%"
+      error_rate: "< 5%"
+      latency_avg: "< 1000ms"
+      latency_max: "< 3000ms"
+      support_response: "48 hours"
+      maintenance_window: "4 hours/month"
+    
+  silver:
+    name: "Silver - Professional" 
+    target_market: "Growing businesses, fintech startups"
+    pricing_tier: "Professional"
+    commitments:
+      uptime: "99.5%"
+      error_rate: "< 2%"
+      latency_avg: "< 750ms"
+      latency_max: "< 2000ms"
+      support_response: "24 hours"
+      maintenance_window: "2 hours/month"
+      
+  gold:
+    name: "Gold - Enterprise"
+    target_market: "Large enterprises, institutional clients"
+    pricing_tier: "Enterprise"
+    commitments:
+      uptime: "99.9%"
+      error_rate: "< 1%"
+      latency_avg: "< 500ms"
+      latency_max: "< 1500ms"
+      support_response: "4 hours"
+      maintenance_window: "1 hour/month"
+      dedicated_support: true
+      priority_routing: true
+
+# SLA Breach Consequences
+breach_handling:
+  bronze:
+    credit: "5% monthly fee credit"
+    notification: "Email within 24h"
+  silver:
+    credit: "10% monthly fee credit"
+    notification: "Email + SMS within 12h"
+  gold:
+    credit: "25% monthly fee credit"
+    notification: "Immediate call + dedicated support"
+    escalation: "C-level notification"
+
+# Monitoring Thresholds (Internal)
+monitoring_thresholds:
+  warning_levels:
+    bronze: "95% uptime (4% buffer)"
+    silver: "97% uptime (2.5% buffer)" 
+    gold: "99% uptime (0.9% buffer)"
+  
+  alert_escalation:
+    level_1: "Ops team (Slack)"
+    level_2: "Engineering lead (PagerDuty)"
+    level_3: "CTO + Customer Success (Phone)"

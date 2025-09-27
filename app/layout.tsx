@@ -3,6 +3,8 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
+import { ConditionalWeb3Provider } from "@/components/conditional-web3-provider"
+import { Toaster } from "sonner"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -29,7 +31,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body className="font-sans">
-        <Suspense fallback={null}>{children}</Suspense>
+        <ConditionalWeb3Provider>
+          <Suspense fallback={null}>{children}</Suspense>
+          <Toaster position="top-right" />
+        </ConditionalWeb3Provider>
         <Analytics />
       </body>
     </html>
