@@ -1,0 +1,34 @@
+{
+  "name": "MyCora Cannabis Platform",
+  "version": "1.0.0",
+  "description": "Cannabis marketplace platform with role-based access",
+  "deployments": {
+    "production": {
+      "url": "https://mycora.vercel.app",
+      "branch": "main",
+      "environment": "production"
+    },
+    "staging": {
+      "url": "https://mycora-staging.vercel.app",
+      "branch": "develop",
+      "environment": "staging"
+    }
+  },
+  "features": [
+    "Role-based authentication",
+    "Product catalog",
+    "Order management",
+    "Payment processing",
+    "Age verification",
+    "Compliance tracking"
+  ],
+  "tech_stack": {
+    "frontend": "Next.js 15",
+    "styling": "Tailwind CSS v4",
+    "database": "PostgreSQL",
+    "orm": "Drizzle",
+    "auth": "NextAuth.js",
+    "payments": "Stripe",
+    "deployment": "Vercel"
+  }
+}
