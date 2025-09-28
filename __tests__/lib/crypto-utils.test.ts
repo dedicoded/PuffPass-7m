@@ -1,6 +1,6 @@
-import { hashPassword, verifyPassword } from "@/lib/crypto-utils"
+import { hashPassword, verifyPasswordHash } from "@/lib/auth-utils"
 
-describe("Crypto Utils", () => {
+describe("Auth Utils", () => {
   describe("hashPassword", () => {
     it("should create a valid bcrypt hash", async () => {
       const password = "TestPassword123!"
@@ -24,11 +24,11 @@ describe("Crypto Utils", () => {
     })
   })
 
-  describe("verifyPassword", () => {
+  describe("verifyPasswordHash", () => {
     it("should verify correct password", async () => {
       const password = "TestPassword123!"
       const hash = await hashPassword(password)
-      const isValid = await verifyPassword(password, hash)
+      const isValid = await verifyPasswordHash(password, hash)
 
       expect(isValid).toBe(true)
     })
@@ -37,7 +37,7 @@ describe("Crypto Utils", () => {
       const password = "TestPassword123!"
       const wrongPassword = "WrongPassword456!"
       const hash = await hashPassword(password)
-      const isValid = await verifyPassword(wrongPassword, hash)
+      const isValid = await verifyPasswordHash(wrongPassword, hash)
 
       expect(isValid).toBe(false)
     })
@@ -46,7 +46,7 @@ describe("Crypto Utils", () => {
       const password = "TestPassword123!"
       const invalidHash = "not-a-valid-hash"
 
-      await expect(verifyPassword(password, invalidHash)).rejects.toThrow()
+      await expect(verifyPasswordHash(password, invalidHash)).rejects.toThrow()
     })
   })
 })

@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Hash password using auth-utils
     console.log("[v0] Hashing password...")
     const hashedPassword = await hashPassword(password)
     console.log("[v0] Password hashed successfully")

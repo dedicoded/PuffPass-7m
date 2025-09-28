@@ -18,13 +18,22 @@ export function ConditionalWeb3Provider({ children }: { children: React.ReactNod
   useEffect(() => {
     if (needsWeb3 && !Web3Provider && !isLoading && !hasError) {
       setIsLoading(true)
+
+      const loadTimeout = setTimeout(() => {
+        console.warn("[v0] Web3Provider loading timeout - continuing without Web3")
+        setHasError(true)
+        setIsLoading(false)
+      }, 3000)
+
       import("@/components/web3-provider")
         .then((module) => {
+          clearTimeout(loadTimeout)
           setWeb3Provider(() => module.Web3Provider)
           setIsLoading(false)
         })
         .catch((error) => {
-          console.error("Failed to load Web3Provider:", error)
+          clearTimeout(loadTimeout)
+          console.warn("[v0] Web3Provider failed to load - continuing without Web3:", error.message)
           setHasError(true)
           setIsLoading(false)
         })

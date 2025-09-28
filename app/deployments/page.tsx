@@ -2,7 +2,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { GitBranch, Clock, Globe, CheckCircle, ExternalLink, Copy, MoreHorizontal, BarChart3 } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  GitBranch,
+  Clock,
+  Globe,
+  CheckCircle,
+  MoreHorizontal,
+  BarChart3,
+  Activity,
+  TrendingUp,
+  Database,
+  Server,
+} from "lucide-react"
+import { DeploymentsList } from "@/components/deployments/deployments-list"
+import { DeploymentMetrics } from "@/components/deployments/deployment-metrics"
+import { RealTimeMonitor } from "@/components/deployments/real-time-monitor"
+import { AnalyticsCharts } from "@/components/deployments/analytics-charts"
 
 export default function DeploymentsPage() {
   const deployments = [
@@ -53,203 +69,239 @@ export default function DeploymentsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border bg-card/30">
-        <div className="container mx-auto px-6 py-4">
+      <div className="border-b border-border bg-card/30 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground">Deployments</h1>
-              <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                <GitBranch className="w-4 h-4" />
-                <span>Continuously generated from</span>
-                <span className="text-foreground font-mono">vercel/v0</span>
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-foreground">Deployment Dashboard</h1>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <GitBranch className="w-4 h-4" />
+                  <span>PuffPass Platform</span>
+                </div>
+                <Separator orientation="vertical" className="h-4" />
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
+                  <span>Real-time monitoring</span>
+                </div>
               </div>
             </div>
-            <Button variant="outline" size="sm">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm">
+                <Database className="w-4 h-4 mr-2" />
+                View Logs
+              </Button>
+              <Button variant="outline" size="sm">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-6 py-8">
-        {/* Metrics Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {metrics.map((metric, index) => (
-            <Card key={index} className="metric-card">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{metric.label}</p>
-                    <p className="text-2xl font-semibold text-foreground mt-1">{metric.value}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm text-green-400">{metric.change}</span>
-                  </div>
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-700 dark:text-green-300">Active Deployments</p>
+                  <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">12</p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="text-sm bg-transparent">
-              All Branches
-            </Button>
-            <Button variant="outline" size="sm" className="text-sm bg-transparent">
-              Select Date Range
-            </Button>
-            <Button variant="outline" size="sm" className="text-sm bg-transparent">
-              All Environments
-            </Button>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Badge variant="secondary" className="status-ready">
-              <CheckCircle className="w-3 h-3 mr-1" />
-              Status 6/6
-            </Badge>
-          </div>
-        </div>
-
-        {/* Deployments List */}
-        <div className="space-y-3">
-          {deployments.map((deployment) => (
-            <Card key={deployment.id} className="deployment-card">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary" className="status-ready px-2 py-1">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {deployment.status}
-                      </Badge>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm text-foreground">{deployment.id}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {deployment.environment}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                          <GitBranch className="w-3 h-3" />
-                          <span className="font-mono">{deployment.branch}</span>
-                          <span className="font-mono">{deployment.commit}</span>
-                          <span>{deployment.message}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                    <div className="text-right text-sm">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        <span>{deployment.duration}</span>
-                      </div>
-                      <div className="text-muted-foreground mt-1">
-                        {deployment.timeAgo} by {deployment.author}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                  <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Deployment Details Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
-          {/* Build Performance */}
-          <Card className="bg-card/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Build Performance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Average Build Time</span>
-                  <span className="font-mono text-sm">4m 32s</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Fastest Build</span>
-                  <span className="font-mono text-sm text-green-400">2m 18s</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Cache Hit Rate</span>
-                  <span className="font-mono text-sm">87%</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Bundle Size</span>
-                  <span className="font-mono text-sm">2.4 MB</span>
-                </div>
+              </div>
+              <div className="flex items-center mt-4 text-sm">
+                <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400 mr-1" />
+                <span className="text-green-600 dark:text-green-400 font-medium">+2 from yesterday</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Environment Status */}
-          <Card className="bg-card/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="w-5 h-5" />
-                Environment Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <span className="text-sm">Production</span>
-                  </div>
-                  <Badge variant="secondary" className="status-ready">
-                    Healthy
-                  </Badge>
+          <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-blue-200 dark:border-blue-800">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Success Rate</p>
+                  <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-1">98.7%</p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                    <span className="text-sm">Preview</span>
-                  </div>
-                  <Badge variant="secondary" className="status-ready">
-                    8 Active
-                  </Badge>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                  <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                    <span className="text-sm">Development</span>
-                  </div>
-                  <Badge variant="secondary" className="status-building">
-                    Building
-                  </Badge>
+              </div>
+              <div className="flex items-center mt-4 text-sm">
+                <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400 mr-1" />
+                <span className="text-blue-600 dark:text-blue-400 font-medium">+0.3% this week</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20 border-purple-200 dark:border-purple-800">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-purple-700 dark:text-purple-300">Avg Build Time</p>
+                  <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-1">4m 32s</p>
                 </div>
-                <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Total Requests (24h)</span>
-                  <span className="font-mono text-sm">12.4K</span>
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full">
+                  <Clock className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                 </div>
+              </div>
+              <div className="flex items-center mt-4 text-sm">
+                <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400 mr-1" />
+                <span className="text-green-600 dark:text-green-400 font-medium">-15% faster</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200 dark:border-orange-800">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Preview Branches</p>
+                  <p className="text-3xl font-bold text-orange-900 dark:text-orange-100 mt-1">8</p>
+                </div>
+                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+                  <GitBranch className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                </div>
+              </div>
+              <div className="flex items-center mt-4 text-sm">
+                <TrendingUp className="w-4 h-4 text-orange-600 dark:text-orange-400 mr-1" />
+                <span className="text-orange-600 dark:text-orange-400 font-medium">+2 active</span>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        <Tabs defaultValue="deployments" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 lg:w-fit lg:grid-cols-5">
+            <TabsTrigger value="deployments" className="flex items-center gap-2">
+              <Server className="w-4 h-4" />
+              Deployments
+            </TabsTrigger>
+            <TabsTrigger value="metrics" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Metrics
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="monitor" className="flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              Monitor
+            </TabsTrigger>
+            <TabsTrigger value="environments" className="flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              Environments
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="deployments" className="space-y-6">
+            <DeploymentsList />
+          </TabsContent>
+
+          <TabsContent value="metrics" className="space-y-6">
+            <DeploymentMetrics />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <AnalyticsCharts />
+          </TabsContent>
+
+          <TabsContent value="monitor" className="space-y-6">
+            <RealTimeMonitor />
+          </TabsContent>
+
+          <TabsContent value="environments" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    Production
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                    >
+                      Healthy
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Last Deploy</span>
+                    <span className="text-sm font-mono">2h ago</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Uptime</span>
+                    <span className="text-sm font-mono">99.9%</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                    Preview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Active Branches</span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                    >
+                      8 Active
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Auto Deploy</span>
+                    <span className="text-sm font-mono">Enabled</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Last Build</span>
+                    <span className="text-sm font-mono">12m ago</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                    Development
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                    >
+                      Building
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Progress</span>
+                    <span className="text-sm font-mono">67%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">ETA</span>
+                    <span className="text-sm font-mono">3m 15s</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

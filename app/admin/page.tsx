@@ -29,7 +29,12 @@ import {
   ArrowDownLeft,
   CreditCard,
   Coins,
+  Heart,
+  Users,
+  Zap,
+  Target,
 } from "lucide-react"
+import { FloatAllocationDashboard } from "@/components/admin/float-allocation-dashboard"
 
 interface MerchantApplication {
   id: string
@@ -99,6 +104,63 @@ interface Transaction {
   merchant_name?: string
 }
 
+interface VaultSummary {
+  total_balance: number
+  breakdown: Record<string, number>
+  vault_health: {
+    status: string
+    reserve_ratio: number
+    fee_coverage_days: number
+  }
+  last_updated: string
+}
+
+interface MerchantContributions {
+  total_contributions: number
+  merchants: Array<{
+    merchant_id: string
+    total_fees: number
+    withdrawal_fees: number
+    transaction_fees: number
+    last_activity: string
+    contribution_count: number
+  }>
+  last_updated: string
+}
+
+interface RewardsPool {
+  rewards_pool_balance: number
+  allocation_percent: number
+  lifetime_distributed: number
+  pending_redemptions: number
+  total_user_points: number
+  redemption_stats: {
+    completed_redemptions: number
+    pending_redemptions: number
+  }
+  last_updated: string
+}
+
+interface FloatManagement {
+  total_float: number
+  allocations: {
+    stablecoins: number
+    fiat_reserves: number
+    yield_deployment: number
+  }
+  yield_metrics: {
+    current_apy: number
+    projected_monthly_yield: number
+    projected_annual_yield: number
+  }
+  float_utilization: {
+    utilization_rate: number
+    target_utilization: number
+    available_for_deployment: number
+  }
+  last_updated: string
+}
+
 export default function AdminDashboard() {
   const [merchantApplications, setMerchantApplications] = useState<MerchantApplication[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -112,6 +174,12 @@ export default function AdminDashboard() {
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalRequest | null>(null)
   const [withdrawalNotes, setWithdrawalNotes] = useState("")
 
+  // Added live vault data state
+  const [vaultSummary, setVaultSummary] = useState<VaultSummary | null>(null)
+  const [merchantContributions, setMerchantContributions] = useState<MerchantContributions | null>(null)
+  const [rewardsPool, setRewardsPool] = useState<RewardsPool | null>(null)
+  const [floatManagement, setFloatManagement] = useState<FloatManagement | null>(null)
+
   useEffect(() => {
     fetchMerchantApplications()
     fetchUsers()
@@ -119,6 +187,10 @@ export default function AdminDashboard() {
     fetchComplianceAlerts()
     fetchWithdrawalRequests()
     fetchTransactions()
+    fetchVaultSummary()
+    fetchMerchantContributions()
+    fetchRewardsPool()
+    fetchFloatManagement()
   }, [])
 
   const fetchMerchantApplications = async () => {
@@ -270,6 +342,54 @@ export default function AdminDashboard() {
     }
   }
 
+  const fetchVaultSummary = async () => {
+    try {
+      const response = await fetch("/api/admin/vault/summary")
+      if (response.ok) {
+        const data = await response.json()
+        setVaultSummary(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch vault summary:", error)
+    }
+  }
+
+  const fetchMerchantContributions = async () => {
+    try {
+      const response = await fetch("/api/admin/vault/merchant-contributions")
+      if (response.ok) {
+        const data = await response.json()
+        setMerchantContributions(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch merchant contributions:", error)
+    }
+  }
+
+  const fetchRewardsPool = async () => {
+    try {
+      const response = await fetch("/api/admin/vault/rewards-pool")
+      if (response.ok) {
+        const data = await response.json()
+        setRewardsPool(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch rewards pool:", error)
+    }
+  }
+
+  const fetchFloatManagement = async () => {
+    try {
+      const response = await fetch("/api/admin/vault/float-management")
+      if (response.ok) {
+        const data = await response.json()
+        setFloatManagement(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch float management:", error)
+    }
+  }
+
   const handleMerchantApproval = async (merchantId: string, approved: boolean, notes?: string) => {
     try {
       const endpoint = approved
@@ -404,8 +524,11 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            {/* Added new Puff Vault tab */}
+            <TabsTrigger value="vault">Puff Vault</TabsTrigger>
+            <TabsTrigger value="float">Float Management</TabsTrigger>
             <TabsTrigger value="merchants">Merchants</TabsTrigger>
             <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
@@ -418,13 +541,28 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total PUFF Supply</CardTitle>
-                  <Coins className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-sm font-medium">Puff Vault Balance</CardTitle>
+                  <Wallet className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.total_puff_supply?.toLocaleString() || "0"}</div>
+                  <div className="text-2xl font-bold">${vaultSummary?.total_balance?.toLocaleString() || "0"}</div>
                   <p className="text-xs text-muted-foreground">
-                    {analytics?.circulating_puff?.toLocaleString() || "0"} circulating
+                    Status: {vaultSummary?.vault_health?.status || "loading"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-chart-2/10 to-chart-2/5 border-chart-2/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Rewards Pool</CardTitle>
+                  <Heart className="h-4 w-4 text-chart-2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    ${rewardsPool?.rewards_pool_balance?.toLocaleString() || "0"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {rewardsPool?.total_user_points?.toLocaleString() || "0"} user points
                   </p>
                 </CardContent>
               </Card>
@@ -448,19 +586,6 @@ export default function AdminDashboard() {
                 <CardContent>
                   <div className="text-2xl font-bold">{analytics?.total_merchants || 0}</div>
                   <p className="text-xs text-muted-foreground">{pendingApplications.length} pending approval</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Withdrawals</CardTitle>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{pendingWithdrawals.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    ${pendingWithdrawals.reduce((sum, req) => sum + req.amount, 0).toLocaleString()} total
-                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -593,6 +718,167 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="vault" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Vault Balance</CardTitle>
+                  <Wallet className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">${vaultSummary?.total_balance?.toLocaleString() || "0"}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {vaultSummary?.vault_health?.fee_coverage_days || 0} days coverage
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-chart-2/10 to-chart-2/5 border-chart-2/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Merchant Contributions</CardTitle>
+                  <Users className="h-4 w-4 text-chart-2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    ${merchantContributions?.total_contributions?.toLocaleString() || "0"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {merchantContributions?.merchants?.length || 0} contributing merchants
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-chart-3/10 to-chart-3/5 border-chart-3/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Float Management</CardTitle>
+                  <Target className="h-4 w-4 text-chart-3" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">${floatManagement?.total_float?.toLocaleString() || "0"}</div>
+                  <p className="text-xs text-muted-foreground">
+                    ${floatManagement?.yield_metrics?.projected_monthly_yield?.toFixed(2) || "0"}/mo yield
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-chart-4/10 to-chart-4/5 border-chart-4/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Rewards Distributed</CardTitle>
+                  <Zap className="h-4 w-4 text-chart-4" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{rewardsPool?.redemption_stats?.completed_redemptions || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {rewardsPool?.redemption_stats?.pending_redemptions || 0} pending
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Contributing Merchants</CardTitle>
+                  <CardDescription>Merchants funding the Puff Vault ecosystem</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {merchantContributions?.merchants?.slice(0, 5).map((merchant, index) => (
+                      <div
+                        key={merchant.merchant_id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium">{merchant.merchant_id}</p>
+                            <p className="text-sm text-muted-foreground">{merchant.contribution_count} contributions</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-primary">${merchant.total_fees.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Last: {new Date(merchant.last_activity).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    )) || <p className="text-center text-muted-foreground py-8">Loading merchant data...</p>}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Float Allocation</CardTitle>
+                  <CardDescription>How user funds are managed for yield generation</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                      <div>
+                        <p className="font-medium">Stablecoins (USDC/DAI)</p>
+                        <p className="text-sm text-muted-foreground">70% allocation</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">
+                          ${floatManagement?.allocations?.stablecoins?.toLocaleString() || "0"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Ready for yield</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-chart-2/5 rounded-lg">
+                      <div>
+                        <p className="font-medium">Fiat Reserves</p>
+                        <p className="text-sm text-muted-foreground">25% allocation</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">
+                          ${floatManagement?.allocations?.fiat_reserves?.toLocaleString() || "0"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Instant liquidity</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-chart-3/5 rounded-lg">
+                      <div>
+                        <p className="font-medium">Yield Deployment</p>
+                        <p className="text-sm text-muted-foreground">5% allocation</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">
+                          ${floatManagement?.allocations?.yield_deployment?.toLocaleString() || "0"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {((floatManagement?.yield_metrics?.current_apy || 0) * 100).toFixed(1)}% APY
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="float" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Float Allocation Engine</h2>
+                <p className="text-muted-foreground">
+                  Manage idle balance deployment for yield generation while maintaining liquidity
+                </p>
+              </div>
+              <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-2">
+                <Zap className="w-4 h-4 mr-2" />
+                Live Yield Management
+              </Badge>
+            </div>
+
+            <FloatAllocationDashboard />
           </TabsContent>
 
           {/* Merchants Tab */}

@@ -54,7 +54,26 @@ const nextConfig = {
         'crypto-browserify': false,
         '@react-native-async-storage/async-storage': false,
         'pino-pretty': false,
-        '@stablelib/random': false, // Added @stablelib/random fallback to prevent client-side crypto issues
+        '@stablelib/random': false,
+        '@stablelib/x25519': false,
+        '@stablelib/chacha20poly1305': false,
+        '@stablelib/hkdf': false,
+        '@stablelib/sha256': false,
+        '@noble/curves': false,
+        '@noble/hashes': false,
+        'node:crypto': false,
+        'node:buffer': false,
+        'node:process': false,
+        'node:util': false,
+      }
+      
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@stablelib/random': false,
+        '@stablelib/x25519': false,
+        '@stablelib/chacha20poly1305': false,
+        '@stablelib/hkdf': false,
+        '@stablelib/sha256': false,
       }
     }
     

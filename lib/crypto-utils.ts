@@ -1,25 +1,10 @@
-import bcrypt from "bcryptjs"
-
+// Temporary compatibility layer - uses lazy loading to avoid module load issues
 export async function hashPassword(password: string): Promise<string> {
-  console.log("[v0] hashPassword called with bcryptjs")
-  try {
-    const hash = await bcrypt.hash(password, 10)
-    console.log("[v0] Password hashed successfully with bcryptjs")
-    return hash
-  } catch (error) {
-    console.error("[v0] Error in hashPassword:", error)
-    throw error
-  }
+  const { hashPassword: hashPasswordImpl } = await import("./auth-utils")
+  return hashPasswordImpl(password)
 }
 
 export async function verifyPasswordHash(password: string, hashedPassword: string): Promise<boolean> {
-  console.log("[v0] verifyPasswordHash called with bcryptjs")
-  try {
-    const isValid = await bcrypt.compare(password, hashedPassword)
-    console.log("[v0] Password verification result:", isValid)
-    return isValid
-  } catch (error) {
-    console.error("[v0] Error in verifyPasswordHash:", error)
-    return false
-  }
+  const { verifyPasswordHash: verifyPasswordHashImpl } = await import("./auth-utils")
+  return verifyPasswordHashImpl(password, hashedPassword)
 }

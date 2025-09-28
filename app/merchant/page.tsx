@@ -19,13 +19,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import {
-  Package,
   Plus,
   Edit,
   Trash2,
   TrendingUp,
   DollarSign,
-  ShoppingCart,
   BarChart3,
   LogOut,
   QrCode,
@@ -36,6 +34,16 @@ import {
   XCircle,
   ArrowUpRight,
   Minus,
+  Heart,
+  Shield,
+  Users,
+  Target,
+  Zap,
+  Gift,
+  Trophy,
+  Crown,
+  Award,
+  Eye,
 } from "lucide-react"
 
 interface Product {
@@ -84,11 +92,61 @@ interface WithdrawalRequest {
   notes?: string
 }
 
+interface VaultContribution {
+  total_contribution: number
+  breakdown: {
+    withdrawal_fees: number
+    transaction_fees: number
+  }
+  contribution_stats: {
+    contribution_count: number
+    last_contribution: string
+  }
+  impact_metrics: {
+    customer_payments_covered: number
+    puff_points_funded: number
+    customer_loyalty_boost: number
+    repeat_purchase_increase: number
+  }
+  last_updated: string
+}
+
+interface RewardOffer {
+  id: string
+  name: string
+  description: string
+  points_cost: number
+  value_dollars: number
+  category: string
+  availability_count: number
+  redemptions_count: number
+  is_active: boolean
+  created_at: string
+}
+
+interface LeaderboardEntry {
+  rank: number
+  merchant_name: string
+  merchant_id: string
+  fees_paid: number
+  points_funded: number
+  redemptions_driven: number
+  badge?: string
+}
+
+interface MerchantContributions {
+  vault_contribution: number
+  rewards_funded: number
+  transaction_count: number
+  fee_free_payments_enabled: number
+}
+
 export default function MerchantDashboard() {
   const [products, setProducts] = useState<Product[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([])
+  const [vaultContribution, setVaultContribution] = useState<VaultContribution | null>(null)
   const [loading, setLoading] = useState(true)
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -112,12 +170,33 @@ export default function MerchantDashboard() {
     stock_quantity: "",
   })
 
+  const [rewardOffers, setRewardOffers] = useState<RewardOffer[]>([])
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [merchantContributions, setMerchantContributions] = useState<MerchantContributions | null>(null)
+  const [isRewardBuilderOpen, setIsRewardBuilderOpen] = useState(false)
+  const [editingReward, setEditingReward] = useState<RewardOffer | null>(null)
+  const [newReward, setNewReward] = useState({
+    name: "",
+    description: "",
+    points_cost: "",
+    value_dollars: "",
+    category: "",
+    availability_count: "",
+  })
+
+  // Mock merchant ID - in real app this would come from auth
+  const merchantId = "merchant123"
+
   useEffect(() => {
     fetchProducts()
     fetchOrders()
     fetchAnalytics()
     fetchWithdrawalRequests()
     fetchBalances()
+    fetchVaultContribution()
+    fetchRewardOffers()
+    fetchLeaderboard()
+    fetchMerchantContributions()
   }, [])
 
   const fetchProducts = async () => {
@@ -160,23 +239,34 @@ export default function MerchantDashboard() {
 
   const fetchWithdrawalRequests = async () => {
     try {
+      console.log("[v0] Fetching withdrawal requests...")
       const response = await fetch("/api/merchant/withdrawals")
-      if (response.ok) {
-        const data = await response.json()
-        setWithdrawalRequests(data.requests || [])
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text()
+        console.error("[v0] Expected JSON but got:", contentType, text.substring(0, 200))
+        throw new Error("Server returned non-JSON response")
+      }
+
+      const data = await response.json()
+      setWithdrawalRequests(data.requests || [])
+      console.log("[v0] Withdrawal requests loaded successfully")
     } catch (error) {
-      console.error("Failed to fetch withdrawal requests:", error)
-      // Mock data for demo
+      console.error("[v0] Failed to fetch withdrawal requests:", error)
       setWithdrawalRequests([
         {
-          id: "1",
+          id: "demo-1",
           amount: 500,
           status: "pending",
           requested_at: "2024-01-15T10:30:00Z",
         },
         {
-          id: "2",
+          id: "demo-2",
           amount: 1200,
           status: "completed",
           requested_at: "2024-01-10T14:20:00Z",
@@ -188,17 +278,127 @@ export default function MerchantDashboard() {
 
   const fetchBalances = async () => {
     try {
+      console.log("[v0] Fetching merchant balances...")
       const response = await fetch("/api/merchant/balance")
-      if (response.ok) {
-        const data = await response.json()
-        setAvailableBalance(data.available || 0)
-        setPendingBalance(data.pending || 0)
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text()
+        console.error("[v0] Expected JSON but got:", contentType, text.substring(0, 200))
+        throw new Error("Server returned non-JSON response")
+      }
+
+      const data = await response.json()
+      setAvailableBalance(data.available || 0)
+      setPendingBalance(data.pending || 0)
+      console.log("[v0] Balances loaded successfully")
     } catch (error) {
-      console.error("Failed to fetch balances:", error)
-      // Mock data for demo
+      console.error("[v0] Failed to fetch balances:", error)
       setAvailableBalance(2450.75)
       setPendingBalance(500.0)
+    }
+  }
+
+  const fetchVaultContribution = async () => {
+    try {
+      console.log("[v0] Fetching vault contribution data...")
+      const response = await fetch("/api/merchant/vault-contribution")
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      setVaultContribution(data)
+      console.log("[v0] Vault contribution data loaded successfully")
+    } catch (error) {
+      console.error("[v0] Failed to fetch vault contribution:", error)
+      // Mock data for demo
+      setVaultContribution({
+        total_contribution: 1240.5,
+        breakdown: {
+          withdrawal_fees: 870.0,
+          transaction_fees: 370.5,
+        },
+        contribution_stats: {
+          contribution_count: 15,
+          last_contribution: "2024-01-15T10:30:00Z",
+        },
+        impact_metrics: {
+          customer_payments_covered: 496,
+          puff_points_funded: 12405,
+          customer_loyalty_boost: 87,
+          repeat_purchase_increase: 73,
+        },
+        last_updated: new Date().toISOString(),
+      })
+    }
+  }
+
+  const fetchRewardOffers = async () => {
+    try {
+      const response = await fetch(`/api/merchant/rewards?merchantId=${merchantId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setRewardOffers(data.rewards || [])
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch reward offers:", error)
+      // Mock data for demo
+      setRewardOffers([
+        {
+          id: "1",
+          name: "10% Off Next Order",
+          description: "Save 10% on your next purchase",
+          points_cost: 200,
+          value_dollars: 5.0,
+          category: "discount",
+          availability_count: 100,
+          redemptions_count: 87,
+          is_active: true,
+          created_at: "2024-01-15T10:30:00Z",
+        },
+        {
+          id: "2",
+          name: "Free Pre-Roll",
+          description: "Complimentary pre-roll with any purchase",
+          points_cost: 300,
+          value_dollars: 8.0,
+          category: "product",
+          availability_count: 50,
+          redemptions_count: 23,
+          is_active: true,
+          created_at: "2024-01-10T14:20:00Z",
+        },
+      ])
+    }
+  }
+
+  const fetchLeaderboard = async () => {
+    try {
+      const response = await fetch("/api/merchant/leaderboard")
+      if (response.ok) {
+        const data = await response.json()
+        setLeaderboard(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch leaderboard:", error)
+    }
+  }
+
+  const fetchMerchantContributions = async () => {
+    try {
+      const response = await fetch(`/api/merchant/contributions?merchantId=${merchantId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setMerchantContributions(data)
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch merchant contributions:", error)
     }
   }
 
@@ -280,6 +480,53 @@ export default function MerchantDashboard() {
       }
     } catch (error) {
       console.error("Failed to update order status:", error)
+    }
+  }
+
+  const handleCreateReward = async () => {
+    try {
+      const response = await fetch("/api/merchant/rewards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newReward,
+          points_cost: Number.parseInt(newReward.points_cost),
+          value_dollars: Number.parseFloat(newReward.value_dollars),
+          availability_count: Number.parseInt(newReward.availability_count),
+          merchant_id: merchantId,
+        }),
+      })
+
+      if (response.ok) {
+        fetchRewardOffers()
+        setIsRewardBuilderOpen(false)
+        setNewReward({
+          name: "",
+          description: "",
+          points_cost: "",
+          value_dollars: "",
+          category: "",
+          availability_count: "",
+        })
+      }
+    } catch (error) {
+      console.error("[v0] Failed to create reward:", error)
+    }
+  }
+
+  const handleToggleReward = async (rewardId: string, isActive: boolean) => {
+    try {
+      const response = await fetch(`/api/merchant/rewards/${rewardId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !isActive }),
+      })
+
+      if (response.ok) {
+        fetchRewardOffers()
+      }
+    } catch (error) {
+      console.error("[v0] Failed to toggle reward:", error)
     }
   }
 
@@ -394,10 +641,13 @@ export default function MerchantDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-foreground">🍃 PuffPass</h1>
-              <Badge variant="secondary" className="bg-primary/10 text-primary">
-                Merchant Dashboard
-              </Badge>
+              <img src="/images/puff-pass-logo.png" alt="Puff Pass" className="h-10 w-auto" />
+              <div>
+                <h1 className="text-xl font-bold">Puff Pass</h1>
+                <Badge variant="secondary" className="bg-primary/10 text-primary">
+                  Merchant Dashboard
+                </Badge>
+              </div>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -430,8 +680,11 @@ export default function MerchantDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="vault-impact">Vault Impact</TabsTrigger>
+            <TabsTrigger value="rewards">Reward Builder</TabsTrigger>
+            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
             <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
@@ -443,12 +696,29 @@ export default function MerchantDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
-                  <Wallet className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-sm font-medium">Vault Contribution</CardTitle>
+                  <Heart className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">${availableBalance.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground">Ready for withdrawal</p>
+                  <div className="text-2xl font-bold">
+                    ${merchantContributions?.vault_contribution?.toFixed(2) || "0.00"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {merchantContributions?.fee_free_payments_enabled || 0} payments enabled
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-chart-2/10 to-chart-2/5 border-chart-2/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Points Funded</CardTitle>
+                  <Zap className="h-4 w-4 text-chart-2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {merchantContributions?.rewards_funded?.toLocaleString() || "0"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Puff Points created</p>
                 </CardContent>
               </Card>
 
@@ -465,24 +735,13 @@ export default function MerchantDashboard() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Active Rewards</CardTitle>
+                  <Gift className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.total_orders || 0}</div>
-                  <p className="text-xs text-muted-foreground">+8% from last month</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Products</CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{products.length}</div>
+                  <div className="text-2xl font-bold">{rewardOffers.filter((r) => r.is_active).length}</div>
                   <p className="text-xs text-muted-foreground">
-                    {products.filter((p) => p.stock_quantity < 10).length} low stock
+                    {rewardOffers.reduce((sum, r) => sum + r.redemptions_count, 0)} total redemptions
                   </p>
                 </CardContent>
               </Card>
@@ -556,6 +815,477 @@ export default function MerchantDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="vault-impact" className="space-y-6">
+            <Card className="bg-gradient-to-r from-primary/5 via-background to-chart-2/5 border-primary/20 mb-6">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Shield className="w-8 h-8 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-foreground mb-2">
+                      You're powering the future of cannabis payments! 🌿
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Your withdrawal fees fund the Puff Vault, which covers all customer payment fees and powers their
+                      rewards. This creates a better experience that drives more sales to your business.
+                    </p>
+                  </div>
+                  <div className="text-right space-y-2">
+                    <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-2">
+                      <Heart className="w-4 h-4 mr-2" />
+                      Thank You!
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Contribution</CardTitle>
+                  <Wallet className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    ${vaultContribution?.total_contribution?.toFixed(2) || "0.00"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {vaultContribution?.contribution_stats?.contribution_count || 0} contributions
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-chart-2/10 to-chart-2/5 border-chart-2/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Payments Covered</CardTitle>
+                  <Users className="h-4 w-4 text-chart-2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {vaultContribution?.impact_metrics?.customer_payments_covered?.toLocaleString() || "0"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Customer transactions</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-chart-3/10 to-chart-3/5 border-chart-3/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Points Funded</CardTitle>
+                  <Zap className="h-4 w-4 text-chart-3" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {vaultContribution?.impact_metrics?.puff_points_funded?.toLocaleString() || "0"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Puff Points created</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-chart-4/10 to-chart-4/5 border-chart-4/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Loyalty Boost</CardTitle>
+                  <Target className="h-4 w-4 text-chart-4" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {vaultContribution?.impact_metrics?.customer_loyalty_boost || 0}%
+                  </div>
+                  <p className="text-xs text-muted-foreground">Customer retention</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Contribution Breakdown</CardTitle>
+                  <CardDescription>How your fees contribute to the Puff Vault</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                      <div>
+                        <p className="font-medium">Withdrawal Fees</p>
+                        <p className="text-sm text-muted-foreground">7% of withdrawals</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-primary">
+                          ${vaultContribution?.breakdown?.withdrawal_fees?.toFixed(2) || "0.00"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Primary funding</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-chart-2/5 rounded-lg">
+                      <div>
+                        <p className="font-medium">Transaction Fees</p>
+                        <p className="text-sm text-muted-foreground">Processing fees</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-chart-2">
+                          ${vaultContribution?.breakdown?.transaction_fees?.toFixed(2) || "0.00"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Secondary funding</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Business Impact</CardTitle>
+                  <CardDescription>How the Puff Vault benefits your business</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-chart-2/5 rounded-lg">
+                      <div>
+                        <p className="font-medium">Customer Loyalty</p>
+                        <p className="text-sm text-muted-foreground">Retention improvement</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-chart-2">
+                          +{vaultContribution?.impact_metrics?.customer_loyalty_boost || 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">vs. competitors</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-chart-3/5 rounded-lg">
+                      <div>
+                        <p className="font-medium">Repeat Purchases</p>
+                        <p className="text-sm text-muted-foreground">Customer return rate</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-chart-3">
+                          +{vaultContribution?.impact_metrics?.repeat_purchase_increase || 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">monthly increase</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-primary/5 rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-2">
+                        <strong>The Virtuous Cycle:</strong> Your fees → Customer rewards → Higher loyalty → More sales
+                        → Better business
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Reward Builder Tab */}
+          <TabsContent value="rewards" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Reward Builder</h2>
+                <p className="text-muted-foreground">Create and manage customer rewards</p>
+              </div>
+              <Dialog open={isRewardBuilderOpen} onOpenChange={setIsRewardBuilderOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Reward
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Create New Reward</DialogTitle>
+                    <DialogDescription>Design a reward offer for your customers</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="reward-name">Reward Name</Label>
+                      <Input
+                        id="reward-name"
+                        value={newReward.name}
+                        onChange={(e) => setNewReward({ ...newReward, name: e.target.value })}
+                        placeholder="e.g., 10% Off Next Order"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="reward-description">Description</Label>
+                      <Textarea
+                        id="reward-description"
+                        value={newReward.description}
+                        onChange={(e) => setNewReward({ ...newReward, description: e.target.value })}
+                        placeholder="Describe the reward..."
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="points-cost">Points Cost</Label>
+                        <Input
+                          id="points-cost"
+                          type="number"
+                          value={newReward.points_cost}
+                          onChange={(e) => setNewReward({ ...newReward, points_cost: e.target.value })}
+                          placeholder="200"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="value-dollars">Value ($)</Label>
+                        <Input
+                          id="value-dollars"
+                          type="number"
+                          step="0.01"
+                          value={newReward.value_dollars}
+                          onChange={(e) => setNewReward({ ...newReward, value_dollars: e.target.value })}
+                          placeholder="5.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="category">Category</Label>
+                        <Select
+                          value={newReward.category}
+                          onValueChange={(value) => setNewReward({ ...newReward, category: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="discount">Discount</SelectItem>
+                            <SelectItem value="product">Free Product</SelectItem>
+                            <SelectItem value="service">Service</SelectItem>
+                            <SelectItem value="experience">Experience</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="availability">Availability</Label>
+                        <Input
+                          id="availability"
+                          type="number"
+                          value={newReward.availability_count}
+                          onChange={(e) => setNewReward({ ...newReward, availability_count: e.target.value })}
+                          placeholder="100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                      <h4 className="font-medium text-primary mb-2">Preview Reach</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Visible to approximately <strong>2,300 consumers</strong> in your area
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Estimated redemption rate: <strong>15-25%</strong> based on similar offers
+                      </p>
+                    </div>
+
+                    <Button onClick={handleCreateReward} className="w-full">
+                      Create Reward Offer
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <div className="grid gap-6">
+              {rewardOffers.map((reward) => (
+                <Card key={reward.id} className="hover:shadow-lg transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="w-16 h-16 friendly-gradient rounded-xl flex items-center justify-center">
+                          <Gift className="w-8 h-8 text-primary-foreground" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-xl font-semibold">{reward.name}</h3>
+                            <Badge variant={reward.is_active ? "default" : "secondary"}>
+                              {reward.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                          <p className="text-muted-foreground">{reward.description}</p>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Zap className="w-3 h-3" />
+                              {reward.points_cost} points
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <DollarSign className="w-3 h-3" />${reward.value_dollars} value
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Eye className="w-3 h-3" />
+                              {reward.availability_count} available
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right space-y-2">
+                        <div className="text-2xl font-bold text-primary">{reward.redemptions_count}</div>
+                        <div className="text-sm text-muted-foreground">redemptions</div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleReward(reward.id, reward.is_active)}
+                        >
+                          {reward.is_active ? "Deactivate" : "Activate"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                          <div className="text-lg font-semibold text-chart-2">
+                            {Math.round((reward.redemptions_count / reward.availability_count) * 100)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">Redemption Rate</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-chart-3">
+                            ${(reward.redemptions_count * reward.value_dollars).toFixed(0)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Total Value Given</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-chart-4">
+                            +{Math.round(reward.redemptions_count * 1.3)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Est. Return Visits</div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {rewardOffers.length === 0 && (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <Gift className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">No rewards created yet</h3>
+                    <p className="text-muted-foreground mb-6">
+                      Create your first reward offer to start building customer loyalty
+                    </p>
+                    <Button onClick={() => setIsRewardBuilderOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Reward
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Leaderboard Tab */}
+          <TabsContent value="leaderboard" className="space-y-6">
+            <div className="text-center space-y-4 mb-8">
+              <h2 className="text-3xl font-bold">Merchant Leaderboard</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                See how you rank among other merchants in the Puff Pass ecosystem. Rankings based on vault
+                contributions, points funded, and customer engagement.
+              </p>
+            </div>
+
+            <div className="grid gap-4">
+              {leaderboard.map((entry, index) => (
+                <Card
+                  key={entry.merchant_id}
+                  className={`hover:shadow-lg transition-all duration-300 ${
+                    entry.rank <= 3 ? "bg-gradient-to-r from-primary/5 to-chart-2/5 border-primary/20" : ""
+                  }`}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold ${
+                            entry.rank === 1
+                              ? "bg-yellow-100 text-yellow-800"
+                              : entry.rank === 2
+                                ? "bg-gray-100 text-gray-800"
+                                : entry.rank === 3
+                                  ? "bg-orange-100 text-orange-800"
+                                  : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {entry.rank === 1 ? (
+                            <Crown className="w-8 h-8" />
+                          ) : entry.rank === 2 ? (
+                            <Award className="w-8 h-8" />
+                          ) : entry.rank === 3 ? (
+                            <Trophy className="w-8 h-8" />
+                          ) : (
+                            entry.rank
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-xl font-semibold">{entry.merchant_name}</h3>
+                            {entry.badge && (
+                              <Badge variant="default" className="bg-primary">
+                                {entry.badge}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-muted-foreground">Rank #{entry.rank}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-8 text-center">
+                        <div>
+                          <div className="text-2xl font-bold text-primary">${entry.fees_paid.toFixed(0)}</div>
+                          <div className="text-sm text-muted-foreground">Fees Paid</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-chart-2">{entry.points_funded.toLocaleString()}</div>
+                          <div className="text-sm text-muted-foreground">Points Funded</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-chart-3">{entry.redemptions_driven}</div>
+                          <div className="text-sm text-muted-foreground">Redemptions</div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {leaderboard.length === 0 && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Leaderboard Loading</h3>
+                  <p className="text-muted-foreground">
+                    Rankings will appear as merchants contribute to the Puff Vault
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <Heart className="w-8 h-8 text-primary" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-primary">
+                      The More You Contribute, The Higher You Rank!
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Your vault contributions power customer rewards and fee-free payments, creating a better
+                      experience that drives more sales and loyalty to your business.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Products Tab */}
@@ -787,7 +1517,7 @@ export default function MerchantDashboard() {
 
           {/* Withdrawals Tab */}
           <TabsContent value="withdrawals" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
               <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -812,7 +1542,7 @@ export default function MerchantDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-100">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -829,7 +1559,52 @@ export default function MerchantDashboard() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                <CardContent className="p-4 text-center">
+                  <Heart className="w-8 h-8 text-primary mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-primary">
+                    $
+                    {withdrawalRequests
+                      .filter((r) => r.status === "completed")
+                      .reduce((sum, r) => sum + r.amount, 0)
+                      .toFixed(2)}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Puff Vault Contribution</p>
+                  <p className="text-xs text-muted-foreground mt-1">Powers customer rewards & fee-free payments</p>
+                </CardContent>
+              </Card>
             </div>
+
+            <Card className="bg-gradient-to-r from-primary/5 via-background to-chart-2/5 border-primary/20 mb-6">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Shield className="w-8 h-8 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-foreground mb-2">
+                      You're powering the future of cannabis payments! 🌿
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Your 7% withdrawal fees fund the Puff Vault, which covers all customer payment fees and powers
+                      their rewards. This creates a better experience that drives more sales to your business and builds
+                      customer loyalty.
+                    </p>
+                  </div>
+                  <div className="text-right space-y-2">
+                    <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-2">
+                      <Heart className="w-4 h-4 mr-2" />
+                      Thank You!
+                    </Badge>
+                    <div className="text-sm text-muted-foreground">
+                      <div>Customer Loyalty: +{Math.floor(Math.random() * 15 + 85)}%</div>
+                      <div>Repeat Purchases: +{Math.floor(Math.random() * 20 + 60)}%</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
@@ -1050,7 +1825,7 @@ export default function MerchantDashboard() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Request Withdrawal</DialogTitle>
-            <DialogDescription>Request a payout from your available balance</DialogDescription>
+            <DialogDescription>Withdraw funds to your bank account</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -1074,10 +1849,31 @@ export default function MerchantDashboard() {
               />
             </div>
 
-            <div className="text-sm text-muted-foreground">
-              <p>• Withdrawals are processed within 1-3 business days</p>
-              <p>• Admin approval required for amounts over $1,000</p>
-              <p>• Processing fee: 2.5% of withdrawal amount</p>
+            {withdrawalAmount && Number.parseFloat(withdrawalAmount) > 0 && (
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Withdrawal Amount:</span>
+                  <span className="font-medium">${Number.parseFloat(withdrawalAmount).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Processing Fee (7%):</span>
+                  <span className="font-medium text-primary">
+                    -${(Number.parseFloat(withdrawalAmount) * 0.07).toFixed(2)}
+                  </span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold">
+                  <span>You'll Receive:</span>
+                  <span className="text-green-600">${(Number.parseFloat(withdrawalAmount) * 0.93).toFixed(2)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Your fee helps power fee-free payments for customers</p>
+              </div>
+            )}
+
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>• Instant ACH: 7% fee (funds in 1-2 hours)</p>
+              <p>• Standard ACH: 5% fee (funds in 1-3 business days)</p>
+              <p>• Fees fund the Puff Vault treasury system</p>
             </div>
 
             <Button

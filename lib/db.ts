@@ -1,6 +1,5 @@
 import { neon } from "@neondatabase/serverless"
 import { executeQuery, executeWrite } from "./db-with-circuit-breaker"
-import { verifyPasswordHash } from "./auth-utils"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -17,6 +16,8 @@ export interface User {
   referral_code?: string
   created_at: string
   updated_at: string
+  auth_method?: "password" | "wallet" | "passkey"
+  embedded_wallet?: string
 }
 
 export interface Product {
@@ -98,48 +99,60 @@ export interface ApprovalWorkflow {
   updated_at: string
 }
 
-// These functions now only handle database operations
+export async function createUser(userData: {
+  email: string
+  name?: string
+  role: "customer" | "merchant" | "admin"
+  hashedPassword?: string
+  walletAddress?: string
+  authMethod?: "password" | "wallet" | "passkey"
+  embeddedWallet?: string
+  patientCertification?: boolean
+  dcResidency?: boolean
+  referralCode?: string
+}): Promise<User> {
+  const {
+    email,
+    name = "",
+    role,
+    hashedPassword,
+    walletAddress,
+    authMethod = "password",
+    embeddedWallet,
+    patientCertification = false,
+    dcResidency = false,
+    referralCode,
+  } = userData
 
-export async function createUser(
-  email: string,
-  name: string,
-  role: "customer" | "merchant" | "admin",
-  hashedPassword: string,
-  walletAddress?: string,
-  patientCertification?: boolean,
-  dcResidency?: boolean,
-  referralCode?: string,
-): Promise<User> {
   if (!email || email.trim() === "") {
     throw new Error("Email is required and cannot be empty")
-  }
-
-  if (!name || name.trim() === "") {
-    throw new Error("Name is required and cannot be empty")
-  }
-
-  if (!hashedPassword || hashedPassword.trim() === "") {
-    throw new Error("Password is required and cannot be empty")
   }
 
   if (!role || !["customer", "merchant", "admin"].includes(role)) {
     throw new Error("Valid role is required")
   }
 
+  // Password is required for password auth method
+  if (authMethod === "password" && (!hashedPassword || hashedPassword.trim() === "")) {
+    throw new Error("Password is required for password authentication")
+  }
+
   try {
-    console.log("[v0] Creating user with auto-generated UUID")
+    console.log("[v0] Creating user with auth method:", authMethod)
 
     const result = await executeWrite`
-      INSERT INTO users (name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code)
+      INSERT INTO users (name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code, auth_method, embedded_wallet)
       VALUES (
         ${name.trim()}, 
         ${email.trim().toLowerCase()}, 
-        ${hashedPassword},
+        ${hashedPassword || null},
         ${role},
         ${walletAddress || null},
-        ${patientCertification || false},
-        ${dcResidency || false},
-        ${referralCode || null}
+        ${patientCertification},
+        ${dcResidency},
+        ${referralCode || null},
+        ${authMethod},
+        ${embeddedWallet || null}
       )
       RETURNING id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at
     `
@@ -158,6 +171,8 @@ export async function createUser(
       referral_code: dbUser.referral_code,
       created_at: dbUser.created_at,
       updated_at: dbUser.updated_at,
+      auth_method: dbUser.auth_method,
+      embedded_wallet: dbUser.embedded_wallet,
     }
 
     console.log("[v0] User object created:", user)
@@ -179,7 +194,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     console.log("[v0] Looking up user by email:", normalizedEmail)
 
     const result = await executeQuery`
-      SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at
+      SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE email = ${normalizedEmail}
     `
@@ -202,6 +217,8 @@ export async function getUserByEmail(email: string): Promise<User | null> {
       referral_code: user.referral_code,
       created_at: user.created_at,
       updated_at: user.updated_at,
+      auth_method: user.auth_method,
+      embedded_wallet: user.embedded_wallet,
     }
 
     console.log("[v0] User found:", { ...foundUser, role: foundUser.role })
@@ -220,7 +237,7 @@ export async function getUserById(id: string): Promise<User | null> {
 
   try {
     const result = await sql`
-      SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at
+      SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE id = ${id.trim()}
     `
@@ -240,6 +257,8 @@ export async function getUserById(id: string): Promise<User | null> {
       referral_code: user.referral_code,
       created_at: user.created_at,
       updated_at: user.updated_at,
+      auth_method: user.auth_method,
+      embedded_wallet: user.embedded_wallet,
     }
   } catch (error) {
     console.error("[v0] Error in getUserById:", error)
@@ -263,7 +282,7 @@ export async function verifyPassword(email: string, password: string): Promise<U
     const normalizedEmail = email.trim().toLowerCase()
 
     const result = await executeQuery`
-      SELECT id, name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at
+      SELECT id, name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE email = ${normalizedEmail}
     `
@@ -275,7 +294,8 @@ export async function verifyPassword(email: string, password: string): Promise<U
 
     const user = result[0]
 
-    console.log("[v0] User found, verifying password with crypto")
+    console.log("[v0] User found, verifying password with auth-utils")
+    const { verifyPasswordHash } = await import("./auth-utils")
     const isPasswordValid = await verifyPasswordHash(password, user.password)
 
     if (isPasswordValid) {
@@ -291,6 +311,8 @@ export async function verifyPassword(email: string, password: string): Promise<U
         referral_code: user.referral_code,
         created_at: user.created_at,
         updated_at: user.updated_at,
+        auth_method: user.auth_method,
+        embedded_wallet: user.embedded_wallet,
       }
     }
 
@@ -321,7 +343,7 @@ export async function getUserByEmailAndRole(
     console.log("[v0] Looking up user by email and role:", normalizedEmail, role)
 
     const result = await sql`
-      SELECT id, name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at
+      SELECT id, name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE email = ${normalizedEmail} AND role = ${role}
     `
@@ -345,6 +367,8 @@ export async function getUserByEmailAndRole(
       created_at: user.created_at,
       updated_at: user.updated_at,
       password_hash: user.password, // Include password hash for verification
+      auth_method: user.auth_method,
+      embedded_wallet: user.embedded_wallet,
     }
 
     console.log("[v0] User found with role:", { ...foundUser, password_hash: "[REDACTED]" })
@@ -355,7 +379,6 @@ export async function getUserByEmailAndRole(
   }
 }
 
-// Product management functions
 export async function createProduct(productData: Omit<Product, "id" | "created_at" | "updated_at">) {
   const result = await sql`
     INSERT INTO products (name, description, category, strain_type, thc_percentage, cbd_percentage, price_per_unit, unit_type, merchant_id, stock_quantity, lab_tested, status)
@@ -389,7 +412,6 @@ export async function updateProductStock(productId: string, newStock: number) {
   `
 }
 
-// Order management functions
 export async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">) {
   const result = await sql`
     INSERT INTO orders (customer_id, merchant_id, total_amount, tax_amount, status, payment_method, payment_status, delivery_method, delivery_address, notes)
@@ -434,7 +456,6 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
   `
 }
 
-// Merchant profile functions
 export async function createMerchantProfile(profileData: Omit<MerchantProfile, "id" | "created_at" | "updated_at">) {
   const result = await sql`
     INSERT INTO merchant_profiles (user_id, business_name, license_number, license_type, business_address, phone, email, metrc_facility_id, approval_status)
@@ -468,7 +489,6 @@ export async function approveMerchant(profileId: string, approvedBy: string) {
   `
 }
 
-// Approval workflow functions
 export async function createApprovalWorkflow(workflowData: Omit<ApprovalWorkflow, "id" | "created_at" | "updated_at">) {
   const result = await sql`
     INSERT INTO approval_workflows (workflow_type, entity_id, entity_type, status, requested_by, assigned_to, notes)
@@ -500,7 +520,6 @@ export async function updateApprovalStatus(
   `
 }
 
-// Puff Points functions
 export async function addPuffPoints(userId: string, points: number, transactionDescription: string, orderId?: string) {
   await sql`
     INSERT INTO puff_points (user_id, points_earned, points_balance, transaction_type, transaction_description, order_id)
@@ -526,4 +545,50 @@ export async function getUserPuffPoints(userId: string): Promise<number> {
     WHERE user_id = ${userId}
   `
   return result[0]?.balance || 0
+}
+
+export async function getUserByWallet(walletAddress: string): Promise<User | null> {
+  if (!walletAddress || typeof walletAddress !== "string" || walletAddress.trim() === "") {
+    console.log("[v0] getUserByWallet called with invalid wallet address:", walletAddress)
+    return null
+  }
+
+  try {
+    const normalizedAddress = walletAddress.trim().toLowerCase()
+    console.log("[v0] Looking up user by wallet address:", normalizedAddress)
+
+    const result = await executeQuery`
+      SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
+      FROM users 
+      WHERE LOWER(wallet_address) = ${normalizedAddress}
+    `
+
+    if (result.length === 0) {
+      console.log("[v0] No user found with wallet address:", normalizedAddress)
+      return null
+    }
+
+    const user = result[0]
+
+    const foundUser: User = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      wallet_address: user.wallet_address,
+      patient_certification: user.patient_certification,
+      dc_residency: user.dc_residency,
+      referral_code: user.referral_code,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      auth_method: user.auth_method,
+      embedded_wallet: user.embedded_wallet,
+    }
+
+    console.log("[v0] User found by wallet:", { ...foundUser, role: foundUser.role })
+    return foundUser
+  } catch (error) {
+    console.error("[v0] Error in getUserByWallet:", error)
+    return null
+  }
 }

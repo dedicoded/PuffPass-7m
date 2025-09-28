@@ -7,12 +7,12 @@ jest.mock("@/lib/db", () => ({
   getUserByEmailAndRole: jest.fn(),
 }))
 
-jest.mock("@/lib/crypto-utils", () => ({
-  verifyPassword: jest.fn(),
+jest.mock("@/lib/auth-utils", () => ({
+  verifyPasswordHash: jest.fn(),
 }))
 
 import { getUserByEmailAndRole } from "@/lib/db"
-import { verifyPassword } from "@/lib/crypto-utils"
+import { verifyPasswordHash } from "@/lib/auth-utils"
 
 describe("/api/auth/login", () => {
   beforeEach(() => {
@@ -28,7 +28,7 @@ describe("/api/auth/login", () => {
       age: 25,
     }
     ;(getUserByEmailAndRole as jest.Mock).mockResolvedValue(mockUser)
-    ;(verifyPassword as jest.Mock).mockResolvedValue(true)
+    ;(verifyPasswordHash as jest.Mock).mockResolvedValue(true)
 
     const request = new NextRequest("http://localhost:3000/api/auth/login", {
       method: "POST",
@@ -57,7 +57,7 @@ describe("/api/auth/login", () => {
       age: 25,
     }
     ;(getUserByEmailAndRole as jest.Mock).mockResolvedValue(mockUser)
-    ;(verifyPassword as jest.Mock).mockResolvedValue(false) // Wrong password
+    ;(verifyPasswordHash as jest.Mock).mockResolvedValue(false) // Wrong password
 
     const request = new NextRequest("http://localhost:3000/api/auth/login", {
       method: "POST",

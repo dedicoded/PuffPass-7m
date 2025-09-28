@@ -1,106 +1,351 @@
-import { ShoppingCart, Building2, Shield } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Leaf, Coins, Shield, Zap, ArrowRight, Star, Users, TrendingUp } from "lucide-react"
+import Link from "next/link"
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center space-y-8 mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 text-balance">🍃MyCora Cannabis Platform</h1>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto text-pretty">
-            Choose your role to access cannabis commerce features
-          </p>
-          <p className="text-lg text-slate-500 font-medium">
-            Enterprise-grade security with 90% savings over credit cards
-          </p>
-        </div>
-
-        <div className="space-y-8 max-w-4xl mx-auto">
-          {/* Cannabis Customer */}
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <ShoppingCart className="w-12 h-12 text-green-600" />
-              <h2 className="text-2xl font-bold text-slate-800">Cannabis Customer</h2>
-              <p className="text-slate-600 text-lg">
-                Shop cannabis products with Puff Pass rewards and mobile payments
-              </p>
-
-              <div className="grid md:grid-cols-2 gap-4 w-full mt-6">
-                <div className="text-left space-y-2">
-                  <p className="text-slate-700">One-tap mobile payments</p>
-                  <p className="text-slate-700">QR code product scanning</p>
+    <div className="min-h-screen bg-background">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden cannabis-leaf-pattern">
+        <div className="container mx-auto px-4 py-16 lg:py-24">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-8">
+              <div className="space-y-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <img src="/images/puff-pass-logo.png" alt="Puff Pass" className="h-16 w-auto" />
                 </div>
-                <div className="text-left space-y-2">
-                  <p className="text-slate-700">Puff Points rewards</p>
-                  <p className="text-slate-700">Purchase history & receipts</p>
-                </div>
+                <Badge variant="secondary" className="w-fit trust-badge">
+                  <Leaf className="w-4 h-4 mr-2" />
+                  Cannabis Payments Platform
+                </Badge>
+                <h1 className="text-4xl lg:text-6xl font-bold text-balance leading-tight">
+                  Welcome to <span className="vibrant-text font-black">Puff Pass</span>
+                </h1>
+                <p className="text-xl text-muted-foreground text-balance leading-relaxed">
+                  The future of cannabis payments. Convert fiat to USDC, earn PUFF tokens, and enjoy seamless
+                  transactions in the cannabis ecosystem.
+                </p>
               </div>
 
-              <a
-                href="/login?role=customer"
-                className="w-full max-w-md bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6 inline-block text-center"
-              >
-                Select Cannabis Customer
-              </a>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button asChild size="lg" className="text-lg friendly-gradient smile-shadow">
+                  <Link href="/onboard">
+                    Get Started <ArrowRight className="w-5 h-5 ml-2" />
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="text-lg playful-border hover:bg-primary/5 bg-transparent"
+                >
+                  <Link href="/onramp">Buy PUFF Tokens</Link>
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-8 pt-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary">10K+</div>
+                  <div className="text-sm text-muted-foreground">Active Users</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary">$2M+</div>
+                  <div className="text-sm text-muted-foreground">Transactions</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary">500+</div>
+                  <div className="text-sm text-muted-foreground">Merchants</div>
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Cannabis Merchant */}
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <Building2 className="w-12 h-12 text-blue-600" />
-              <h2 className="text-2xl font-bold text-slate-800">Cannabis Merchant</h2>
-              <p className="text-slate-600 text-lg">
-                Manage your dispensary with inventory tracking and compliance tools
-              </p>
+            <div className="relative">
+              <div className="relative z-10 bg-card border playful-border rounded-3xl p-8 smile-shadow">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 friendly-gradient rounded-2xl flex items-center justify-center">
+                        <Coins className="w-6 h-6 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-lg">PUFF Balance</div>
+                        <div className="text-sm text-muted-foreground">Available</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-3xl font-bold text-primary">1,247.50</div>
+                      <div className="text-sm text-muted-foreground">PUFF</div>
+                    </div>
+                  </div>
 
-              <div className="grid md:grid-cols-2 gap-4 w-full mt-6">
-                <div className="text-left space-y-2">
-                  <p className="text-slate-700">Real-time inventory management</p>
-                  <p className="text-slate-700">Payment QR code generation</p>
-                </div>
-                <div className="text-left space-y-2">
-                  <p className="text-slate-700">METRC compliance tracking</p>
-                  <p className="text-slate-700">Sales analytics dashboard</p>
-                </div>
-              </div>
-
-              <a
-                href="/login?role=merchant"
-                className="w-full max-w-md bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6 inline-block text-center"
-              >
-                Select Cannabis Merchant
-              </a>
-            </div>
-          </div>
-
-          {/* Platform Admin */}
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <Shield className="w-12 h-12 text-purple-600" />
-              <h2 className="text-2xl font-bold text-slate-800">Platform Admin</h2>
-              <p className="text-slate-600 text-lg">Oversee merchant operations with trustee approval workflows</p>
-
-              <div className="grid md:grid-cols-2 gap-4 w-full mt-6">
-                <div className="text-left space-y-2">
-                  <p className="text-slate-700">Merchant approval workflows</p>
-                  <p className="text-slate-700">Compliance monitoring</p>
-                </div>
-                <div className="text-left space-y-2">
-                  <p className="text-slate-700">Payout management</p>
-                  <p className="text-slate-700">Platform analytics</p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-4 bg-success/10 border border-success/20 rounded-xl">
+                      <span className="text-sm font-medium">Recent Purchase</span>
+                      <span className="text-sm font-bold text-success">+25.00 PUFF</span>
+                    </div>
+                    <div className="flex justify-between items-center p-4 bg-success/10 border border-success/20 rounded-xl">
+                      <span className="text-sm font-medium">Rewards Earned</span>
+                      <span className="text-sm font-bold text-success">+12.50 PUFF</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <a
-                href="/login?role=admin"
-                className="w-full max-w-md bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors mt-6 inline-block text-center"
-              >
-                Select Platform Admin
-              </a>
+              <div className="absolute inset-0 friendly-gradient rounded-3xl blur-2xl transform rotate-2 opacity-15"></div>
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 lg:py-24 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center space-y-6 mb-16">
+            <h2 className="text-3xl lg:text-5xl font-bold text-balance">Why Choose PuffPass?</h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto text-balance leading-relaxed">
+              Experience the most advanced cannabis payment platform with seamless fiat-to-crypto conversion
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <Card className="feature-item group">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 friendly-gradient rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                  <Zap className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <CardTitle className="text-xl">Instant Conversions</CardTitle>
+                <CardDescription className="text-base leading-relaxed">
+                  Convert fiat to USDC instantly with our advanced payment processing system
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="feature-item group">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 friendly-gradient rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                  <Coins className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <CardTitle className="text-xl">PUFF Rewards</CardTitle>
+                <CardDescription className="text-base leading-relaxed">
+                  Earn PUFF tokens on every purchase and unlock exclusive benefits in our ecosystem
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="feature-item group">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 friendly-gradient rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                  <Shield className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <CardTitle className="text-xl">Secure & Compliant</CardTitle>
+                <CardDescription className="text-base leading-relaxed">
+                  Bank-grade security with full compliance for cannabis industry regulations
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="feature-item group">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 friendly-gradient rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                  <Users className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <CardTitle className="text-xl">Multi-Role Platform</CardTitle>
+                <CardDescription className="text-base leading-relaxed">
+                  Designed for customers, merchants, and administrators with role-specific features
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="feature-item group">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 friendly-gradient rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                  <TrendingUp className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <CardTitle className="text-xl">Real-time Analytics</CardTitle>
+                <CardDescription className="text-base leading-relaxed">
+                  Track your spending, earnings, and rewards with comprehensive analytics
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="feature-item group">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 friendly-gradient rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                  <Leaf className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <CardTitle className="text-xl">Cannabis Focused</CardTitle>
+                <CardDescription className="text-base leading-relaxed">
+                  Purpose-built for the cannabis industry with specialized features and compliance
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Platform Roles Section */}
+      <section className="py-16 lg:py-24 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center space-y-4 mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold">Choose Your Role</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Access tailored features designed for your specific needs in the cannabis ecosystem
+            </p>
+          </div>
+
+          <Tabs defaultValue="customer" className="max-w-4xl mx-auto">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="customer">Customer</TabsTrigger>
+              <TabsTrigger value="merchant">Merchant</TabsTrigger>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="customer" className="mt-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-primary" />
+                    Customer Experience
+                  </CardTitle>
+                  <CardDescription>Shop cannabis products with seamless payments and earn rewards</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">Payment Features</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Instant fiat to USDC conversion</li>
+                        <li>• Multiple payment methods</li>
+                        <li>• Secure wallet integration</li>
+                      </ul>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">Rewards & Benefits</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Earn PUFF tokens on purchases</li>
+                        <li>• Loyalty tier progression</li>
+                        <li>• Exclusive member discounts</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <Button asChild className="w-full">
+                    <Link href="/onboard">Start Shopping</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="merchant" className="mt-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Leaf className="w-5 h-5 text-primary" />
+                    Merchant Dashboard
+                  </CardTitle>
+                  <CardDescription>Manage your cannabis business with powerful tools and analytics</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">Business Management</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Product inventory management</li>
+                        <li>• Order processing & fulfillment</li>
+                        <li>• Customer relationship tools</li>
+                      </ul>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">Payment Processing</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Accept PUFF token payments</li>
+                        <li>• Real-time transaction tracking</li>
+                        <li>• Automated compliance reporting</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <Button asChild className="w-full">
+                    <Link href="/merchant">Access Merchant Portal</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="admin" className="mt-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    Admin Control Panel
+                  </CardTitle>
+                  <CardDescription>Oversee platform operations with comprehensive administrative tools</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">Platform Management</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• User & merchant management</li>
+                        <li>• PUFF token supply control</li>
+                        <li>• System health monitoring</li>
+                      </ul>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">Analytics & Reporting</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Transaction analytics</li>
+                        <li>• Compliance reporting</li>
+                        <li>• Revenue tracking</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <Button asChild className="w-full">
+                    <Link href="/admin">Access Admin Panel</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 lg:py-24">
+        <div className="container mx-auto px-4">
+          <Card className="friendly-gradient smile-shadow border-0">
+            <CardContent className="p-12 text-center space-y-8">
+              <h2 className="text-3xl lg:text-5xl font-bold text-primary-foreground text-balance">
+                Ready to Join Puff Pass?
+              </h2>
+              <p className="text-xl text-primary-foreground/90 max-w-3xl mx-auto text-balance leading-relaxed">
+                Start your journey in the cannabis payment ecosystem today. Convert fiat, earn PUFF tokens, and
+                experience the future of cannabis commerce.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="secondary"
+                  className="text-lg bg-background text-primary hover:bg-background/90"
+                >
+                  <Link href="/onboard">
+                    Create Account <ArrowRight className="w-5 h-5 ml-2" />
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="text-lg playful-border hover:bg-primary-foreground/10 bg-transparent"
+                >
+                  <Link href="/onramp">Buy PUFF Tokens</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+    </div>
   )
 }

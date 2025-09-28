@@ -1,9 +1,6 @@
 // JWT Secret Rotation System for Compliance-Grade Security
 // Supports graceful rotation without breaking existing sessions
 
-import jwt from "jsonwebtoken"
-import { neon } from "@neondatabase/serverless"
-
 interface JWTSecrets {
   current: string
   previous?: string
@@ -34,6 +31,7 @@ export function getJWTSecrets(): JWTSecrets {
  * Create JWT with current secret
  */
 export function createRotationAwareToken(payload: any, expiresIn = "7d"): string {
+  const jwt = require("jsonwebtoken")
   const { current } = getJWTSecrets()
 
   return jwt.sign(
@@ -53,6 +51,7 @@ export function createRotationAwareToken(payload: any, expiresIn = "7d"): string
  * Allows graceful rotation without breaking existing sessions
  */
 export function verifyRotationAwareToken(token: string): any {
+  const jwt = require("jsonwebtoken")
   const { current, previous } = getJWTSecrets()
 
   try {
@@ -95,7 +94,7 @@ export function shouldRotateSecret(): boolean {
 /**
  * Generate a cryptographically secure JWT secret
  */
-export async function generateSecureSecret(): Promise<string> {
+export function generateSecureSecret(): string {
   if (typeof window !== "undefined") {
     // Browser environment - use Web Crypto API
     const array = new Uint8Array(64)
@@ -103,8 +102,8 @@ export async function generateSecureSecret(): Promise<string> {
     return btoa(String.fromCharCode(...array))
   } else {
     // Node.js environment - use crypto module
-    const cryptoModule = await import("crypto")
-    return cryptoModule.randomBytes(64).toString("base64")
+    const crypto = require("crypto")
+    return crypto.randomBytes(64).toString("base64")
   }
 }
 
@@ -112,6 +111,7 @@ export class JWTRotationService {
   private sql: any
 
   constructor() {
+    const { neon } = require("@neondatabase/serverless")
     this.sql = neon(process.env.DATABASE_URL!)
   }
 
@@ -125,6 +125,7 @@ export class JWTRotationService {
   }
 
   async signToken(payload: any, expiresIn = "7d"): Promise<string> {
+    const jwt = require("jsonwebtoken")
     const keys = await this.getCurrentKeys()
 
     if (keys.length === 0) {
@@ -136,6 +137,7 @@ export class JWTRotationService {
   }
 
   async verifyToken(token: string): Promise<any> {
+    const jwt = require("jsonwebtoken")
     const keys = await this.getCurrentKeys()
 
     for (const key of keys) {

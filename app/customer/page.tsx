@@ -26,12 +26,15 @@ import {
   TrendingUp,
   DollarSign,
   User,
+  Heart,
 } from "lucide-react"
 import { TierProgress } from "@/components/rewards/tier-progress"
 import { TierBadge } from "@/components/rewards/tier-badge"
 import { AchievementCard } from "@/components/rewards/achievement-card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { WalletDashboard } from "@/components/wallet-dashboard"
+import { EnhancedRewardsCatalog } from "@/components/rewards/enhanced-rewards-catalog"
+import { createApiUrl } from "@/lib/base-url"
 
 interface Product {
   id: string
@@ -152,7 +155,7 @@ export default function CustomerDashboard() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("/api/products")
+      const response = await fetch(createApiUrl("/api/products"))
       if (response.ok) {
         const data = await response.json()
         setProducts(data.products || [])
@@ -164,7 +167,7 @@ export default function CustomerDashboard() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch("/api/orders")
+      const response = await fetch(createApiUrl("/api/orders"))
       if (response.ok) {
         const data = await response.json()
         setOrders(data.orders || [])
@@ -178,7 +181,7 @@ export default function CustomerDashboard() {
 
   const fetchPuffPoints = async () => {
     try {
-      const response = await fetch("/api/puff-points")
+      const response = await fetch(createApiUrl("/api/puff-points"))
       if (response.ok) {
         const data = await response.json()
         setPuffPoints(data.points || 0)
@@ -190,11 +193,25 @@ export default function CustomerDashboard() {
 
   const fetchPuffBalance = async () => {
     try {
-      const response = await fetch("/api/puff-balance")
-      if (response.ok) {
-        const data = await response.json()
-        setPuffBalance(data.balance || 0)
+      console.log("[v0] Fetching puff balance from API...")
+      const response = await fetch(createApiUrl("/api/puff-balance"))
+
+      if (!response.ok) {
+        console.error("[v0] Puff balance API returned error:", response.status, response.statusText)
+        setPuffBalance(127.45) // Fallback to demo data
+        return
       }
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[v0] Puff balance API returned non-JSON response:", contentType)
+        setPuffBalance(127.45) // Fallback to demo data
+        return
+      }
+
+      const data = await response.json()
+      console.log("[v0] Successfully fetched puff balance:", data)
+      setPuffBalance(data.balance || 0)
     } catch (error) {
       console.error("Failed to fetch puff balance:", error)
       // Mock data for demo
@@ -204,11 +221,63 @@ export default function CustomerDashboard() {
 
   const fetchTransactions = async () => {
     try {
-      const response = await fetch("/api/transactions")
-      if (response.ok) {
-        const data = await response.json()
-        setTransactions(data.transactions || [])
+      console.log("[v0] Fetching transactions from API...")
+      const response = await fetch(createApiUrl("/api/transactions"))
+
+      if (!response.ok) {
+        console.error("[v0] Transactions API returned error:", response.status, response.statusText)
+        setTransactions([
+          {
+            id: "demo-1",
+            type: "onramp",
+            amount: 100,
+            puff_amount: 95.24,
+            description: "Added funds via Apple Pay - Demo",
+            created_at: "2024-01-15T10:30:00Z",
+            status: "completed",
+          },
+          {
+            id: "demo-2",
+            type: "purchase",
+            amount: 45.99,
+            puff_amount: -45.99,
+            description: "Purchase at Green Valley Dispensary - Demo",
+            created_at: "2024-01-14T15:45:00Z",
+            status: "completed",
+          },
+        ])
+        return
       }
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[v0] Transactions API returned non-JSON response:", contentType)
+        setTransactions([
+          {
+            id: "demo-1",
+            type: "onramp",
+            amount: 100,
+            puff_amount: 95.24,
+            description: "Added funds via Apple Pay - Demo",
+            created_at: "2024-01-15T10:30:00Z",
+            status: "completed",
+          },
+          {
+            id: "demo-2",
+            type: "purchase",
+            amount: 45.99,
+            puff_amount: -45.99,
+            description: "Purchase at Green Valley Dispensary - Demo",
+            created_at: "2024-01-14T15:45:00Z",
+            status: "completed",
+          },
+        ])
+        return
+      }
+
+      const data = await response.json()
+      console.log("[v0] Successfully fetched transactions:", data)
+      setTransactions(data.transactions || [])
     } catch (error) {
       console.error("Failed to fetch transactions:", error)
       // Mock data for demo
@@ -291,7 +360,7 @@ export default function CustomerDashboard() {
   const categories = ["all", ...Array.from(new Set(products.map((p) => p.category)))]
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" })
+    await fetch(createApiUrl("/api/auth/logout"), { method: "POST" })
     window.location.href = "/"
   }
 
@@ -768,6 +837,50 @@ export default function CustomerDashboard() {
                 </Card>
               </div>
             </div>
+
+            {/* Puff Vault Powered Message */}
+            <Card className="bg-gradient-to-r from-primary/5 via-background to-chart-2/5 border-primary/20">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Heart className="w-8 h-8 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-foreground mb-2">
+                      Your rewards are powered by the Puff Vault! 🌿
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Every merchant fee contributes to our treasury, funding your rewards and keeping payments
+                      fee-free. The more you shop, the more rewards we can offer!
+                    </p>
+                  </div>
+                  <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-2">
+                    <Gift className="w-4 h-4 mr-2" />
+                    Powered by Merchants
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Enhanced Rewards Catalog */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-primary" />
+                  Live Rewards Catalog
+                </CardTitle>
+                <CardDescription>Redeem your Puff Points for exclusive merchant-sponsored rewards</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EnhancedRewardsCatalog
+                  currentPoints={puffPoints}
+                  onRedemption={() => {
+                    fetchPuffPoints()
+                    // Refresh other data as needed
+                  }}
+                />
+              </CardContent>
+            </Card>
 
             {/* Achievements Grid */}
             <Card>
