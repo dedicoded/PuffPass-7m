@@ -1,0 +1,12 @@
+.next*
+node_modules
+*.log
+.env*
+!.env.example
+# Ignore any potential Stripe API routes
+app/api/stripe/
+**/stripe/**
+# Ignore build artifacts
+dist/
+build/
+out/

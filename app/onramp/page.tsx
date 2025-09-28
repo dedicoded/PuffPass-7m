@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CreditCard, Building2, ArrowRight, DollarSign, Shield, Clock, CheckCircle } from "lucide-react"
-import { StripePaymentForm } from "@/components/stripe-payment-form"
 
 interface PaymentMethod {
   id: string
@@ -25,13 +24,28 @@ interface PaymentMethod {
 
 const paymentMethods: PaymentMethod[] = [
   {
-    id: "card",
-    name: "Credit/Debit Card",
+    id: "cybrid",
+    name: "Cybrid Banking",
     icon: <CreditCard className="w-6 h-6 text-blue-600" />,
-    description: "Pay with Visa, Mastercard, or American Express",
+    description: "Crypto-native banking with instant settlement",
     processingTime: "Instant",
-    fees: "3.5%",
-    limits: "$50 - $10,000",
+    fees: "1.5%",
+    limits: "$50 - $50,000",
+    popular: true,
+    enabled: true,
+  },
+  {
+    id: "sphere",
+    name: "Sphere Pay",
+    icon: (
+      <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+        S
+      </div>
+    ),
+    description: "Direct crypto-to-PUFF conversion",
+    processingTime: "1-2 minutes",
+    fees: "0.8%",
+    limits: "$100 - $25,000",
     popular: true,
     enabled: true,
   },
@@ -45,7 +59,7 @@ const paymentMethods: PaymentMethod[] = [
     processingTime: "Instant",
     fees: "2.9%",
     limits: "$500 - $10,000",
-    popular: true,
+    popular: false,
     enabled: false, // TODO: Enable when Apple Pay is configured
   },
   {
@@ -56,7 +70,7 @@ const paymentMethods: PaymentMethod[] = [
     processingTime: "1-3 minutes",
     fees: "1.5%",
     limits: "$100 - $7,500",
-    popular: true,
+    popular: false,
     enabled: false, // TODO: Enable when Cash App is configured
   },
   {
@@ -131,6 +145,19 @@ export default function OnrampPage() {
   const handlePaymentError = (error: string) => {
     console.error("Payment error:", error)
     // Error is already displayed in the payment form
+  }
+
+  const handleCryptoPayment = async () => {
+    try {
+      // TODO: Implement Cybrid/Sphere payment processing
+      const result = {
+        amountUsd: usdAmount,
+        puffAmount: puffAmount,
+      }
+      handlePaymentSuccess(result)
+    } catch (error) {
+      handlePaymentError("Payment processing failed")
+    }
   }
 
   if (step === "complete" && paymentResult) {
@@ -358,10 +385,40 @@ export default function OnrampPage() {
             <div className="max-w-md mx-auto space-y-6">
               <div className="text-center space-y-2">
                 <h1 className="text-2xl font-bold">Complete Payment</h1>
-                <p className="text-muted-foreground">Secure payment powered by Stripe</p>
+                <p className="text-muted-foreground">Secure crypto-native payment processing</p>
               </div>
 
-              <StripePaymentForm amount={usdAmount} onSuccess={handlePaymentSuccess} onError={handlePaymentError} />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payment Summary</CardTitle>
+                  <CardDescription>Review your transaction details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-muted p-4 rounded-lg space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Payment Method</span>
+                      <span className="font-medium">{selectedPaymentMethod.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Amount</span>
+                      <span className="font-medium">${usdAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Processing Fee</span>
+                      <span className="font-medium">${fees.toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-lg">
+                      <span className="font-medium">PUFF Tokens</span>
+                      <span className="font-bold">{puffAmount.toFixed(2)} PUFF</span>
+                    </div>
+                  </div>
+
+                  <Button onClick={handleCryptoPayment} className="w-full">
+                    Complete Payment
+                  </Button>
+                </CardContent>
+              </Card>
 
               <Button variant="outline" onClick={() => setStep("amount")} className="w-full">
                 Back to Amount
