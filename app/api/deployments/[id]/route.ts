@@ -3,9 +3,9 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await context.params
 
     const deployment = await sql`
       SELECT 
@@ -37,9 +37,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await context.params
     const body = await request.json()
     const { status, deployed_at, build_time, url } = body
 
