@@ -47,8 +47,11 @@ const nextConfig = {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        crypto: false,
-        stream: false,
+        // Allow crypto for Web3 but use browser-compatible version
+        crypto: require.resolve('crypto-browserify'),
+        stream: require.resolve('stream-browserify'),
+        buffer: require.resolve('buffer'),
+        // Block server-only modules
         assert: false,
         http: false,
         https: false,
@@ -59,7 +62,7 @@ const nextConfig = {
         net: false,
         tls: false,
         child_process: false,
-        'crypto-browserify': false,
+        // Block problematic crypto modules that cause MIME issues
         '@react-native-async-storage/async-storage': false,
         'pino-pretty': false,
         '@stablelib/random': false,

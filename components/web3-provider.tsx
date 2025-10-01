@@ -23,7 +23,6 @@ export function useWeb3Health(): Web3HealthStatus | null {
   return useContext(Web3HealthContext)
 }
 
-// Get projectId from environment with fallback
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo-project-id"
 
 function isCryptoAvailable() {

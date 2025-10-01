@@ -35,6 +35,8 @@ import {
   Target,
 } from "lucide-react"
 import { FloatAllocationDashboard } from "@/components/admin/float-allocation-dashboard"
+import { SecurityDashboard } from "@/components/admin/security-dashboard" // Import SecurityDashboard
+import { AgeVerificationDashboard } from "@/components/admin/age-verification-dashboard"
 
 interface MerchantApplication {
   id: string
@@ -524,7 +526,7 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-10">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             {/* Added new Puff Vault tab */}
             <TabsTrigger value="vault">Puff Vault</TabsTrigger>
@@ -534,6 +536,8 @@ export default function AdminDashboard() {
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="compliance">Compliance</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="age-verification">Age Verification</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -1267,6 +1271,14 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-6">
+            <SecurityDashboard />
+          </TabsContent>
+
+          <TabsContent value="age-verification" className="space-y-6">
+            <AgeVerificationDashboard />
           </TabsContent>
         </Tabs>
       </div>

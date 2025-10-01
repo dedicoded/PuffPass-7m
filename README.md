@@ -8,8 +8,10 @@ A comprehensive cannabis marketplace platform built with Next.js, TypeScript, an
 - **Product Management**: Comprehensive cannabis product catalog
 - **Order Processing**: Complete order management system
 - **Blockchain Integration**: Smart contracts for secure transactions
-- **Age Verification**: Compliant age verification system
-- **Admin Dashboard**: Comprehensive platform administration
+- **Age Verification**: Compliant age verification system with audit logging
+- **Admin Dashboard**: Comprehensive platform administration with compliance monitoring
+- **V0-Safe Migrations**: Zero-downtime database migrations with automatic validation
+- **Automated Compliance**: Monthly compliance reports with multi-org support
 
 ## 🛠️ Tech Stack
 
@@ -159,6 +161,34 @@ Legend: ✅ Currently Active  🔌 Future Extension Points
 - All financial flows are traceable through blockchain and Cybrid infrastructure
 - No traditional payment card processing occurs on this platform
 
+## 🛡️ V0-Safe Migration System
+
+This platform includes a production-ready migration safety system that prevents common v0 errors:
+
+### Quick Start
+\`\`\`bash
+# Safely apply any v0-suggested SQL
+pnpm migrate:v0safe "CREATE TABLE users (...);" table-name
+
+# Validate all migrations before deployment
+pnpm migrate:validate
+
+# Generate monthly compliance report
+pnpm compliance:report
+
+# Multi-org compliance reports
+pnpm compliance:multi-org
+\`\`\`
+
+### Features
+- **Automatic SQL rewriting** into idempotent form (IF NOT EXISTS, CREATE OR REPLACE)
+- **Dry-run validation** before applying changes
+- **Timestamped audit trail** of all schema changes
+- **Graceful error handling** for compliance reports
+- **Multi-org support** for scaling across jurisdictions
+
+📚 **Full Documentation**: See [docs/v0-safe-workflow.md](docs/v0-safe-workflow.md)
+
 ## 📦 Installation
 
 ### Quick Start
@@ -201,6 +231,9 @@ PRIVATE_KEY="your-private-key"
 # Payment Processing
 CYBRID_API_KEY="your-cybrid-api-key"
 SPHERE_API_KEY="your-sphere-api-key"
+
+# Email (optional - for automated compliance reports)
+SENDGRID_API_KEY="your-sendgrid-api-key"
 \`\`\`
 
 ## 🏗️ Development
@@ -209,7 +242,7 @@ SPHERE_API_KEY="your-sphere-api-key"
 # Start development server
 pnpm dev
 
-# Build for production
+# Build for production (includes migration validation)
 pnpm build
 
 # Run linting
@@ -220,6 +253,14 @@ pnpm cli
 
 # Compile smart contracts
 pnpm hardhat compile
+
+# Database migrations
+pnpm migrate:v0safe "SQL HERE" migration-name
+pnpm migrate:validate
+
+# Compliance reporting
+pnpm compliance:report
+pnpm compliance:multi-org
 \`\`\`
 
 ## 📁 Project Structure
@@ -227,21 +268,48 @@ pnpm hardhat compile
 \`\`\`
 ├── app/                 # Next.js app directory
 ├── components/          # React components
+│   └── admin/          # Admin dashboard components
 ├── contracts/           # Smart contracts
 ├── scripts/             # CLI and build scripts
+│   ├── v0SafeWrapper.js              # Safe migration wrapper
+│   ├── reportGuardrailEmail.js       # Compliance reporting
+│   └── multiOrgReportGuardrail.js    # Multi-org reports
+├── migrations/          # Timestamped SQL migrations
+├── reports/            # Generated compliance reports
+├── docs/               # Documentation
+│   ├── v0-safe-workflow.md          # Migration & compliance guide
+│   ├── migration-guardrails.md      # Migration best practices
+│   └── deployment-safety.md         # Deployment guidelines
 ├── types/              # TypeScript type definitions
 ├── utils/              # Utility functions
 ├── .husky/             # Git hooks
 └── deployments/        # Deployment configurations
 \`\`\`
 
-## 🌿 Cannabis Compliance
+## 📊 Compliance & Auditing
 
-This platform includes built-in compliance features:
-- Age verification system
-- Product categorization
-- Regulatory compliance tracking
-- Secure transaction processing
+This platform includes comprehensive compliance features:
+
+### Age Verification
+- Real-time age verification with multiple provider support
+- Complete audit logging of all verification attempts
+- Admin dashboard for monitoring pass/fail rates
+- Suspicious activity detection and alerting
+
+### Compliance Reporting
+- Automated monthly compliance reports
+- Multi-organization support for scaling
+- Email delivery to regulators (optional)
+- 90-day artifact retention in GitHub Actions
+- CSV export for regulatory submissions
+
+### Migration Safety
+- All database changes validated before deployment
+- Timestamped audit trail in `migrations/` folder
+- Build-time validation prevents broken deployments
+- Idempotent migrations safe to re-run
+
+📚 **Compliance Documentation**: See [docs/v0-safe-workflow.md](docs/v0-safe-workflow.md)
 
 ## 🚀 Deployment
 
@@ -260,8 +328,21 @@ docker-compose up -d
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+4. **Use v0-safe migrations** for any database changes
+5. Run tests and linting
+6. Submit a pull request
+
+### Database Changes
+Always use the v0-safe wrapper for schema changes:
+\`\`\`bash
+pnpm migrate:v0safe "YOUR SQL HERE" migration-name
+\`\`\`
+
+This ensures:
+- Changes are validated before applying
+- Migrations are idempotent and safe to re-run
+- Complete audit trail is maintained
+- No production errors from malformed SQL
 
 ## 📄 License
 

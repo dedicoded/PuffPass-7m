@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -131,8 +132,8 @@ export default function OnrampPage() {
   }
 
   const handleAmountSubmit = () => {
-    if (usdAmount >= 50) {
-      // Minimum $50
+    if (usdAmount >= 1) {
+      // Minimum $1
       setStep("payment")
     }
   }
@@ -149,14 +150,94 @@ export default function OnrampPage() {
 
   const handleCryptoPayment = async () => {
     try {
-      // TODO: Implement Cybrid/Sphere payment processing
+      console.log("[v0] Starting payment processing for method:", selectedMethod)
+
+      const userId = "user-placeholder-id" // TODO: Get from auth context
+
+      if (selectedMethod === "cybrid") {
+        const response = await fetch("/api/payments/cybrid", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            amount: usdAmount,
+            currency: "USD",
+            walletAddress: "0x0000000000000000000000000000000000000000", // TODO: Get from connected wallet
+          }),
+        })
+
+        if (!response.ok) {
+          let errorMessage = "Cybrid payment failed"
+          try {
+            const responseClone = response.clone()
+            const errorData = await responseClone.json()
+            errorMessage = errorData.error || errorMessage
+          } catch (jsonError) {
+            try {
+              const errorText = await response.text()
+              errorMessage = `Server error: ${errorText.substring(0, 100)}...`
+              console.error("[v0] Non-JSON error response:", errorText)
+            } catch (textError) {
+              console.error("[v0] Failed to read error response:", textError)
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`
+            }
+          }
+          throw new Error(errorMessage)
+        }
+
+        const result = await response.json()
+        console.log("[v0] Cybrid payment successful:", result)
+
+        if (result.mode === "test") {
+          console.warn("[v0] Payment processed in TEST MODE - configure Cybrid API keys for live transactions")
+        }
+      } else if (selectedMethod === "sphere") {
+        const response = await fetch("/api/payments/sphere", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            amount: usdAmount,
+            currency: "USD",
+            walletAddress: "0x0000000000000000000000000000000000000000", // TODO: Get from connected wallet
+          }),
+        })
+
+        if (!response.ok) {
+          let errorMessage = "Sphere payment failed"
+          try {
+            const responseClone = response.clone()
+            const errorData = await responseClone.json()
+            errorMessage = errorData.error || errorMessage
+          } catch (jsonError) {
+            try {
+              const errorText = await response.text()
+              errorMessage = `Server error: ${errorText.substring(0, 100)}...`
+              console.error("[v0] Non-JSON error response:", errorText)
+            } catch (textError) {
+              console.error("[v0] Failed to read error response:", textError)
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`
+            }
+          }
+          throw new Error(errorMessage)
+        }
+
+        const result = await response.json()
+        console.log("[v0] Sphere payment successful:", result)
+
+        if (result.mode === "test") {
+          console.warn("[v0] Payment processed in TEST MODE - configure Sphere API keys for live transactions")
+        }
+      }
+
       const result = {
         amountUsd: usdAmount,
         puffAmount: puffAmount,
       }
       handlePaymentSuccess(result)
     } catch (error) {
-      handlePaymentError("Payment processing failed")
+      console.error("[v0] Payment processing error:", error)
+      handlePaymentError(error instanceof Error ? error.message : "Payment processing failed")
     }
   }
 
@@ -201,12 +282,12 @@ export default function OnrampPage() {
       <header className="border-b bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">P</span>
               </div>
               <span className="font-semibold text-lg">PuffPass</span>
-            </div>
+            </Link>
             <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
               Add Funds
             </Badge>
@@ -338,18 +419,18 @@ export default function OnrampPage() {
                       <Input
                         id="amount"
                         type="number"
-                        placeholder="50.00"
+                        placeholder="1.00"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         className="pl-10"
-                        min="50"
+                        min="1"
                         step="0.01"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">Minimum amount: $50.00</p>
+                    <p className="text-xs text-muted-foreground">Minimum amount: $1.00</p>
                   </div>
 
-                  {usdAmount >= 50 && (
+                  {usdAmount >= 1 && (
                     <div className="bg-muted p-4 rounded-lg space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">You pay</span>
@@ -371,7 +452,7 @@ export default function OnrampPage() {
                     <Button variant="outline" onClick={() => setStep("select")} className="flex-1">
                       Back
                     </Button>
-                    <Button onClick={handleAmountSubmit} disabled={usdAmount < 50} className="flex-1">
+                    <Button onClick={handleAmountSubmit} disabled={usdAmount < 1} className="flex-1">
                       Continue
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>

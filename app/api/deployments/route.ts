@@ -15,20 +15,21 @@ export async function GET(request: NextRequest) {
     let query = `
       SELECT 
         d.id,
-        d.deployment_url,
-        d.branch_name,
-        d.commit_hash,
-        d.commit_message,
-        d.status,
+        d.project_name,
         d.environment,
-        d.build_time_seconds,
-        d.deployed_by,
+        d.status,
+        d.version,
+        d.commit_hash,
+        d.branch,
+        d.platform,
+        d.url as deployment_url,
+        d.build_time,
+        d.deploy_time,
         d.created_at,
-        d.completed_at,
-        p.name as project_name,
-        p.repository_url
+        d.updated_at,
+        d.deployed_by,
+        d.deployment_config
       FROM deployments d
-      LEFT JOIN projects p ON d.project_id = p.id
       WHERE 1=1
     `
     const params: any[] = []
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (branch && branch !== "all") {
-      query += ` AND d.branch_name ILIKE $${paramIndex}`
+      query += ` AND d.branch ILIKE $${paramIndex}`
       params.push(`%${branch}%`)
       paramIndex++
     }
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     const deployments = await sql(query, params)
 
     // Get total count for pagination
-    let countQuery = "SELECT COUNT(*) as total FROM deployments d LEFT JOIN projects p ON d.project_id = p.id WHERE 1=1"
+    let countQuery = "SELECT COUNT(*) as total FROM deployments d WHERE 1=1"
     const countParams: any[] = []
     let countParamIndex = 1
 
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (branch && branch !== "all") {
-      countQuery += ` AND d.branch_name ILIKE $${countParamIndex}`
+      countQuery += ` AND d.branch ILIKE $${countParamIndex}`
       countParams.push(`%${branch}%`)
       countParamIndex++
     }
@@ -101,28 +102,31 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
-      project_id,
-      deployment_url,
-      branch_name,
+      project_name,
+      environment = "production",
+      status = "pending",
+      version,
       commit_hash,
-      commit_message,
-      status = "building",
-      environment = "preview",
-      build_time_seconds,
+      branch,
+      platform = "vercel",
+      url,
+      build_time,
+      deploy_time,
       deployed_by,
+      deployment_config = {},
     } = body
 
-    if (!project_id || !branch_name || !commit_hash) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!project_name || !branch || !commit_hash) {
+      return NextResponse.json({ error: "Missing required fields: project_name, branch, commit_hash" }, { status: 400 })
     }
 
     const result = await sql`
       INSERT INTO deployments (
-        project_id, deployment_url, branch_name, commit_hash, commit_message,
-        status, environment, build_time_seconds, deployed_by
+        project_name, environment, status, version, commit_hash, branch,
+        platform, url, build_time, deploy_time, deployed_by, deployment_config
       ) VALUES (
-        ${project_id}, ${deployment_url}, ${branch_name}, ${commit_hash}, ${commit_message},
-        ${status}, ${environment}, ${build_time_seconds}, ${deployed_by}
+        ${project_name}, ${environment}, ${status}, ${version}, ${commit_hash}, ${branch},
+        ${platform}, ${url}, ${build_time}, ${deploy_time}, ${deployed_by}, ${deployment_config}
       )
       RETURNING *
     `

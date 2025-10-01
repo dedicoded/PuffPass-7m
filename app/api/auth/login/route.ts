@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { verifyPassword, getUserByWallet, createUser } from "@/lib/db"
 import { createSession, verifyAdminWallet } from "@/lib/auth"
 import { verifyPasskey, createEmbeddedWallet } from "@/lib/auth-enhanced"
+import { sql } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -11,6 +12,11 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { loginType, email, password, walletAddress, signature, passkeyCredential, userType } = body
+
+    // If no loginType specified, assume email/password login
+    if (!loginType && email && password) {
+      return await handleEmailPasswordLogin(email, password, userType || "customer")
+    }
 
     switch (loginType) {
       case "wallet":
@@ -39,6 +45,25 @@ async function handleWalletLogin(walletAddress: string, signature: string, userT
     // Verify wallet signature
     const isValidSignature = await verifyWalletSignature(walletAddress, signature)
     if (!isValidSignature) {
+      await sql`
+        INSERT INTO audit_logs (
+          actor_id,
+          actor_type,
+          action,
+          resource_type,
+          metadata
+        ) VALUES (
+          ${null},
+          'system',
+          'WALLET_LOGIN_FAILED',
+          'authentication',
+          ${JSON.stringify({
+            walletAddress,
+            reason: "Invalid signature",
+            timestamp: new Date().toISOString(),
+          })}::jsonb
+        )
+      `
       return NextResponse.json({ success: false, error: "Invalid wallet signature" }, { status: 401 })
     }
 
@@ -53,6 +78,28 @@ async function handleWalletLogin(walletAddress: string, signature: string, userT
         authMethod: "wallet",
       })
     }
+
+    await sql`
+      INSERT INTO audit_logs (
+        actor_id,
+        actor_type,
+        action,
+        resource_type,
+        resource_id,
+        metadata
+      ) VALUES (
+        ${user.id},
+        'user',
+        'WALLET_LOGIN_SUCCESS',
+        'authentication',
+        ${user.id},
+        ${JSON.stringify({
+          walletAddress,
+          role: user.role,
+          timestamp: new Date().toISOString(),
+        })}::jsonb
+      )
+    `
 
     const response = NextResponse.json({
       success: true,
@@ -74,6 +121,25 @@ async function handleEmailPasskeyLogin(email: string, passkeyCredential: any, us
     // Verify passkey
     const passkeyResult = await verifyPasskey(email, passkeyCredential)
     if (!passkeyResult.success) {
+      await sql`
+        INSERT INTO audit_logs (
+          actor_id,
+          actor_type,
+          action,
+          resource_type,
+          metadata
+        ) VALUES (
+          ${null},
+          'system',
+          'PASSKEY_LOGIN_FAILED',
+          'authentication',
+          ${JSON.stringify({
+            email,
+            reason: "Invalid passkey",
+            timestamp: new Date().toISOString(),
+          })}::jsonb
+        )
+      `
       return NextResponse.json({ success: false, error: "Invalid passkey" }, { status: 401 })
     }
 
@@ -88,6 +154,28 @@ async function handleEmailPasskeyLogin(email: string, passkeyCredential: any, us
         embeddedWallet: embeddedWallet.address,
       })
     }
+
+    await sql`
+      INSERT INTO audit_logs (
+        actor_id,
+        actor_type,
+        action,
+        resource_type,
+        resource_id,
+        metadata
+      ) VALUES (
+        ${user.id},
+        'user',
+        'PASSKEY_LOGIN_SUCCESS',
+        'authentication',
+        ${user.id},
+        ${JSON.stringify({
+          email,
+          role: user.role,
+          timestamp: new Date().toISOString(),
+        })}::jsonb
+      )
+    `
 
     const response = NextResponse.json({
       success: true,
@@ -108,6 +196,25 @@ async function handleEmailPasswordLogin(email: string, password: string, userTyp
   try {
     const user = await verifyPassword(email, password)
     if (!user) {
+      await sql`
+        INSERT INTO audit_logs (
+          actor_id,
+          actor_type,
+          action,
+          resource_type,
+          metadata
+        ) VALUES (
+          ${null},
+          'system',
+          'EMAIL_LOGIN_FAILED',
+          'authentication',
+          ${JSON.stringify({
+            email,
+            reason: "Invalid credentials",
+            timestamp: new Date().toISOString(),
+          })}::jsonb
+        )
+      `
       return NextResponse.json({ success: false, error: "Invalid email or password" }, { status: 401 })
     }
 
@@ -115,6 +222,29 @@ async function handleEmailPasswordLogin(email: string, password: string, userTyp
     if (userType === "merchant" && user.role !== "merchant") {
       return NextResponse.json({ success: false, error: "Invalid merchant credentials" }, { status: 401 })
     }
+
+    await sql`
+      INSERT INTO audit_logs (
+        actor_id,
+        actor_type,
+        action,
+        resource_type,
+        resource_id,
+        metadata
+      ) VALUES (
+        ${user.id},
+        'user',
+        'EMAIL_LOGIN_SUCCESS',
+        'authentication',
+        ${user.id},
+        ${JSON.stringify({
+          email,
+          role: user.role,
+          requiresMFA: user.role === "merchant" && shouldRequireMFA(user),
+          timestamp: new Date().toISOString(),
+        })}::jsonb
+      )
+    `
 
     const response = NextResponse.json({
       success: true,
@@ -135,6 +265,25 @@ async function handleAdminWalletLogin(walletAddress: string, signature: string) 
   try {
     const isValidAdmin = await verifyAdminWallet(walletAddress, signature)
     if (!isValidAdmin) {
+      await sql`
+        INSERT INTO audit_logs (
+          actor_id,
+          actor_type,
+          action,
+          resource_type,
+          metadata
+        ) VALUES (
+          ${null},
+          'system',
+          'ADMIN_LOGIN_FAILED',
+          'authentication',
+          ${JSON.stringify({
+            walletAddress,
+            reason: "Unauthorized admin access",
+            timestamp: new Date().toISOString(),
+          })}::jsonb
+        )
+      `
       return NextResponse.json({ success: false, error: "Unauthorized admin access" }, { status: 403 })
     }
 
@@ -142,6 +291,28 @@ async function handleAdminWalletLogin(walletAddress: string, signature: string) 
     if (!user || user.role !== "admin") {
       return NextResponse.json({ success: false, error: "Admin user not found" }, { status: 404 })
     }
+
+    await sql`
+      INSERT INTO audit_logs (
+        actor_id,
+        actor_type,
+        action,
+        resource_type,
+        resource_id,
+        metadata
+      ) VALUES (
+        ${user.id},
+        'admin',
+        'ADMIN_LOGIN_SUCCESS',
+        'authentication',
+        ${user.id},
+        ${JSON.stringify({
+          walletAddress,
+          sessionDuration: "short",
+          timestamp: new Date().toISOString(),
+        })}::jsonb
+      )
+    `
 
     const response = NextResponse.json({
       success: true,
@@ -157,17 +328,53 @@ async function handleAdminWalletLogin(walletAddress: string, signature: string) 
   }
 }
 
-// Helper functions
 async function verifyWalletSignature(walletAddress: string, signature: string): Promise<boolean> {
-  // Implementation for wallet signature verification
-  // This would use ethers or similar to verify the signature
-  return true // Placeholder
+  try {
+    // Basic validation
+    if (!walletAddress || !signature) {
+      return false
+    }
+
+    // Validate wallet address format (Ethereum address)
+    const addressRegex = /^0x[a-fA-F0-9]{40}$/
+    if (!addressRegex.test(walletAddress)) {
+      return false
+    }
+
+    // Validate signature format
+    const signatureRegex = /^0x[a-fA-F0-9]{130}$/
+    if (!signatureRegex.test(signature)) {
+      return false
+    }
+
+    // TODO: Implement actual signature verification using ethers.js or viem
+    // This would involve:
+    // 1. Reconstructing the original message that was signed
+    // 2. Using ethers.verifyMessage() or similar to verify the signature
+    // 3. Comparing the recovered address with the provided walletAddress
+
+    // For now, return true for valid format (placeholder for actual verification)
+    console.log("[v0] Wallet signature verification - format validated, awaiting full implementation")
+    return true
+  } catch (error) {
+    console.error("[v0] Wallet signature verification error:", error)
+    return false
+  }
 }
 
 function shouldTriggerKYC(user: any): boolean {
-  return user.totalTransactionVolume > 1000 || user.riskScore > 0.7
+  const totalTransactionVolume = user.totalTransactionVolume ?? 0
+  const riskScore = user.riskScore ?? 0
+  return totalTransactionVolume > 1000 || riskScore > 0.7
 }
 
 function shouldRequireMFA(user: any): boolean {
-  return user.role === "merchant" && user.lastMFACheck < Date.now() - 24 * 60 * 60 * 1000
+  if (user.role !== "merchant") {
+    return false
+  }
+
+  const lastMFACheck = user.lastMFACheck ? new Date(user.lastMFACheck).getTime() : 0
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+
+  return lastMFACheck < oneDayAgo
 }

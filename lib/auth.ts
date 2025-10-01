@@ -103,21 +103,15 @@ export async function verifyToken(token: string): Promise<{
 
 export async function verifyAdminWallet(walletAddress: string, signature: string): Promise<boolean> {
   try {
-    const deployerWallet = process.env.NEXT_PUBLIC_ADMIN_TRUSTEE_WALLET
-    if (!deployerWallet) {
-      console.error("[v0] Admin trustee wallet not configured")
+    const trustedWallets = process.env.TRUSTED_WALLETS?.split(",").map((addr) => addr.trim().toLowerCase()) || []
+
+    if (!trustedWallets.includes(walletAddress.toLowerCase())) {
+      console.log("[v0] Wallet not in trusted list:", walletAddress)
       return false
     }
 
-    // Check if wallet matches deployer wallet
-    if (walletAddress.toLowerCase() !== deployerWallet.toLowerCase()) {
-      console.log("[v0] Wallet does not match admin trustee wallet")
-      return false
-    }
-
-    // Verify signature (implementation would use ethers/viem)
-    // For now, return true if wallet matches
-    console.log("[v0] Admin wallet verified:", walletAddress)
+    // For now, return true if wallet is in trusted list
+    console.log("[v0] Trusted wallet verified:", walletAddress)
     return true
   } catch (error) {
     console.error("[v0] Admin wallet verification error:", error)
@@ -229,6 +223,25 @@ export async function destroySession() {
   const cookieStore = await cookies()
   cookieStore.delete("session")
   cookieStore.delete("admin-session")
+}
+
+export async function linkWalletToUser(userId: string, walletAddress: string): Promise<boolean> {
+  try {
+    const { neon } = await import("@neondatabase/serverless")
+    const sql = neon(process.env.DATABASE_URL!)
+
+    await sql`
+      UPDATE users 
+      SET wallet_address = ${walletAddress}, updated_at = NOW()
+      WHERE id = ${userId}
+    `
+
+    console.log("[v0] Wallet linked to user:", { userId, walletAddress })
+    return true
+  } catch (error) {
+    console.error("[v0] Error linking wallet to user:", error)
+    return false
+  }
 }
 
 // Helper functions

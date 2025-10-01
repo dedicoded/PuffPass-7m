@@ -4,31 +4,31 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
+  --background: oklch(0.08 0 0);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.12 0 0);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.12 0 0);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.98 0 0);
+  --primary-foreground: oklch(0.08 0 0);
+  --secondary: oklch(0.18 0 0);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.15 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.18 0 0);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.62 0.25 29);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.18 0 0);
+  --input: oklch(0.18 0 0);
+  --ring: oklch(0.65 0 0);
+  --chart-1: oklch(0.7 0.25 142);
+  --chart-2: oklch(0.7 0.25 258);
+  --chart-3: oklch(0.65 0.25 12);
+  --chart-4: oklch(0.8 0.25 197);
+  --chart-5: oklch(0.75 0.25 67);
+  --radius: 0.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -37,6 +37,13 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Deployment specific colors */
+  --deployment-success: oklch(0.7 0.25 142);
+  --deployment-warning: oklch(0.8 0.25 67);
+  --deployment-error: oklch(0.62 0.25 29);
+  --deployment-pending: oklch(0.7 0.25 258);
+  --deployment-ready: oklch(0.7 0.25 142);
 }
 
 .dark {
@@ -72,6 +79,13 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+
+  /* Deployment specific dark colors */
+  --deployment-success: oklch(0.7 0.25 142);
+  --deployment-warning: oklch(0.8 0.25 67);
+  --deployment-error: oklch(0.62 0.25 29);
+  --deployment-pending: oklch(0.7 0.25 258);
+  --deployment-ready: oklch(0.7 0.25 142);
 }
 
 @theme inline {
@@ -180,6 +194,167 @@
 .dark .treasury-card {
   background: rgba(15, 23, 42, 0.8);
   border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+/* Security dashboard styles following Vercel observability design */
+.security-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  transition: all 0.2s ease-in-out;
+}
+
+.security-card:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.dark .security-card {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.dark .security-card:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Security metric cards with accent borders */
+.security-card.border-l-4 {
+  border-left-width: 4px;
+}
+
+/* Security status indicators */
+.status-healthy {
+  @apply bg-green-50 text-green-700 border-green-200;
+}
+
+.status-warning {
+  @apply bg-yellow-50 text-yellow-700 border-yellow-200;
+}
+
+.status-error {
+  @apply bg-red-50 text-red-700 border-red-200;
+}
+
+.dark .status-healthy {
+  @apply bg-green-900/20 text-green-400 border-green-800;
+}
+
+.dark .status-warning {
+  @apply bg-yellow-900/20 text-yellow-400 border-yellow-800;
+}
+
+.dark .status-error {
+  @apply bg-red-900/20 text-red-400 border-red-800;
+}
+
+/* Deployment dashboard specific styles */
+.deployment-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: all 0.2s ease-in-out;
+}
+
+.deployment-card:hover {
+  border-color: var(--muted-foreground);
+}
+
+.deployment-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.deployment-status.success {
+  color: var(--deployment-success);
+}
+
+.deployment-status.warning {
+  color: var(--deployment-warning);
+}
+
+.deployment-status.error {
+  color: var(--deployment-error);
+}
+
+.deployment-status.pending {
+  color: var(--deployment-pending);
+}
+
+.deployment-status.ready {
+  color: var(--deployment-ready);
+}
+
+.deployment-metric-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.deployment-metric-card:hover {
+  border-color: var(--muted-foreground);
+  transform: translateY(-1px);
+}
+
+.deployment-chart {
+  background: var(--muted);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 1rem;
+}
+
+.deployment-sidebar {
+  background: var(--card);
+  border-right: 1px solid var(--border);
+}
+
+.deployment-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.deployment-nav-item:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.deployment-nav-item.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.deployment-header {
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+}
+
+.deployment-filter {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+
+.deployment-filter:focus {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px var(--ring);
 }
 
 @layer base {

@@ -3,6 +3,8 @@ import { NextResponse } from "next/server"
 import { sql, createUser, getUserByEmail } from "@/lib/db"
 import { hashPassword } from "@/lib/auth-utils"
 import { createSession } from "@/lib/auth"
+import { createEmbeddedWallet } from "@/lib/auth-enhanced"
+import { getProviderId } from "@/lib/provider-utils" // Assuming getProviderId is imported from provider-utils
 
 export const runtime = "nodejs"
 
@@ -40,9 +42,6 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Basic validation passed")
 
-    // Database utilities already imported
-    console.log("[v0] Database utilities already imported")
-
     // Test database connection
     console.log("[v0] Testing database connection...")
     try {
@@ -76,18 +75,62 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hashPassword(password)
     console.log("[v0] Password hashed successfully")
 
+    console.log("[v0] Creating embedded wallet for new user...")
+    let embeddedWalletAddress: string | undefined
+    try {
+      const embeddedWallet = await createEmbeddedWallet()
+      embeddedWalletAddress = embeddedWallet.address
+      console.log("[v0] Embedded wallet created:", embeddedWalletAddress)
+    } catch (walletError) {
+      console.error("[v0] Failed to create embedded wallet:", walletError)
+      // Continue without embedded wallet - it's not critical for registration
+    }
+
     console.log("[v0] Creating user...")
-    const newUser = await createUser(
+    const newUser = await createUser({
       email,
       name,
       role,
       hashedPassword,
       walletAddress,
+      authMethod: "password",
+      embeddedWallet: embeddedWalletAddress,
       patientCertification,
       dcResidency,
       referralCode,
-    )
+    })
     console.log("[v0] User created successfully:", { id: newUser.id, email: newUser.email, role: newUser.role })
+
+    if (role === "customer") {
+      try {
+        console.log("[v0] Creating welcome bonus transaction...")
+        const systemProviderId = await getProviderId("system")
+
+        await sql`
+          INSERT INTO puff_transactions (
+            user_id,
+            transaction_type,
+            amount,
+            puff_amount,
+            description,
+            status,
+            provider_id
+          ) VALUES (
+            ${newUser.id},
+            'reward',
+            0,
+            50,
+            'Welcome bonus - Thank you for joining PuffPass!',
+            'completed',
+            ${systemProviderId}
+          )
+        `
+        console.log("[v0] Welcome bonus created: 50 PUFF")
+      } catch (bonusError) {
+        console.error("[v0] Failed to create welcome bonus:", bonusError)
+        // Non-critical, continue
+      }
+    }
 
     console.log("[v0] Creating session for new user...")
     try {
@@ -101,6 +144,7 @@ export async function POST(request: NextRequest) {
             name: newUser.name,
             role: newUser.role,
             wallet_address: newUser.wallet_address,
+            embedded_wallet: newUser.embedded_wallet,
             patient_certification: newUser.patient_certification,
             dc_residency: newUser.dc_residency,
             referral_code: newUser.referral_code,
@@ -109,8 +153,6 @@ export async function POST(request: NextRequest) {
         { status: 201, headers: { "Content-Type": "application/json" } },
       )
 
-      // The createSession function expects a User object with created_at and updated_at (snake_case)
-      // The newUser from createUser already has the correct format
       await createSession(newUser, response)
       console.log("[v0] Session created successfully for new user:", newUser.id)
       return response

@@ -84,7 +84,7 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(true)
   const [rewardsData, setRewardsData] = useState({
     currentTier: "bronze" as const,
-    totalSpent: 245,
+    totalSpent: 0,
     achievements: [
       {
         id: "first-purchase",
@@ -119,7 +119,7 @@ export default function CustomerDashboard() {
         icon: "💰",
         points: 300,
         unlocked: false,
-        progress: 245,
+        progress: 0,
         maxProgress: 500,
       },
       {
@@ -151,6 +151,7 @@ export default function CustomerDashboard() {
     fetchPuffPoints()
     fetchPuffBalance()
     fetchTransactions()
+    fetchConsumerBalance()
   }, [])
 
   const fetchProducts = async () => {
@@ -362,6 +363,48 @@ export default function CustomerDashboard() {
   const handleLogout = async () => {
     await fetch(createApiUrl("/api/auth/logout"), { method: "POST" })
     window.location.href = "/"
+  }
+
+  const fetchConsumerBalance = async () => {
+    try {
+      console.log("[v0] Fetching consumer balance from API...")
+      const response = await fetch(createApiUrl("/api/consumer/balance"))
+
+      if (!response.ok) {
+        console.error("[v0] Consumer balance API returned error:", response.status)
+        return
+      }
+
+      const data = await response.json()
+      console.log("[v0] Successfully fetched consumer balance:", data)
+
+      // Update rewards data with real total spent
+      setRewardsData((prev) => ({
+        ...prev,
+        totalSpent: data.total_spent || 0,
+        currentTier: mapTierName(data.current_tier),
+        achievements: prev.achievements.map((achievement) => {
+          if (achievement.id === "big-spender") {
+            return {
+              ...achievement,
+              progress: data.total_spent || 0,
+              unlocked: (data.total_spent || 0) >= 500,
+            }
+          }
+          return achievement
+        }),
+      }))
+    } catch (error) {
+      console.error("Failed to fetch consumer balance:", error)
+    }
+  }
+
+  const mapTierName = (tierName: string): "bronze" | "silver" | "gold" | "platinum" => {
+    const lowerTier = tierName.toLowerCase()
+    if (lowerTier.includes("silver") || lowerTier.includes("gold puffer")) return "silver"
+    if (lowerTier.includes("gold") || lowerTier.includes("platinum puffer")) return "gold"
+    if (lowerTier.includes("platinum") || lowerTier.includes("diamond")) return "platinum"
+    return "bronze"
   }
 
   if (loading) {

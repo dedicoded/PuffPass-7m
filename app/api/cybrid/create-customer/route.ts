@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
+import { paymentRegistry } from "@/lib/payment-providers/registry"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -7,51 +8,52 @@ export async function POST(request: NextRequest) {
   try {
     const { userId, personalDetails } = await request.json()
 
-    // Create customer in Cybrid
-    const cybridResponse = await fetch("https://bank.sandbox.cybrid.app/api/customers", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.CYBRID_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        type: "individual",
-        name: {
-          first: personalDetails.firstName,
-          last: personalDetails.lastName,
-        },
-        address: {
-          street: personalDetails.address,
-          city: personalDetails.city,
-          subdivision: personalDetails.state,
-          postal_code: personalDetails.zipCode,
-          country_code: personalDetails.country || "US",
-        },
-        date_of_birth: personalDetails.dateOfBirth,
-        phone_number: personalDetails.phoneNumber,
-        email_address: personalDetails.email,
-      }),
-    })
+    console.log("[v0] Creating Cybrid customer for user:", userId)
 
-    if (!cybridResponse.ok) {
-      throw new Error("Failed to create Cybrid customer")
+    // Get Cybrid provider from registry
+    const cybridProvider = paymentRegistry.get("cybrid")
+    if (!cybridProvider) {
+      return NextResponse.json({ error: "Cybrid provider not available" }, { status: 500 })
     }
 
-    const cybridCustomer = await cybridResponse.json()
+    // Create customer through provider
+    const result = await cybridProvider.createCustomer({
+      userId,
+      email: personalDetails.email,
+      firstName: personalDetails.firstName,
+      lastName: personalDetails.lastName,
+      phoneNumber: personalDetails.phoneNumber,
+      dateOfBirth: personalDetails.dateOfBirth,
+      address: personalDetails.address
+        ? {
+            street: personalDetails.address,
+            city: personalDetails.city,
+            state: personalDetails.state,
+            zipCode: personalDetails.zipCode,
+            country: personalDetails.country || "US",
+          }
+        : undefined,
+    })
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 500 })
+    }
 
     // Store Cybrid customer ID in database
     await sql`
       UPDATE users 
-      SET cybrid_customer_id = ${cybridCustomer.guid}
+      SET cybrid_customer_id = ${result.customerId}
       WHERE id = ${userId}
     `
 
+    console.log("[v0] Cybrid customer created successfully:", result.customerId)
+
     return NextResponse.json({
       success: true,
-      cybridCustomerId: cybridCustomer.guid,
+      cybridCustomerId: result.customerId,
     })
-  } catch (error) {
-    console.error("Error creating Cybrid customer:", error)
-    return NextResponse.json({ error: "Failed to create customer" }, { status: 500 })
+  } catch (error: any) {
+    console.error("[v0] Error creating Cybrid customer:", error)
+    return NextResponse.json({ error: error.message || "Failed to create customer" }, { status: 500 })
   }
 }

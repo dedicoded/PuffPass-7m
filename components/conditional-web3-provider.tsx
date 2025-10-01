@@ -40,13 +40,20 @@ export function ConditionalWeb3Provider({ children }: { children: React.ReactNod
     }
   }, [needsWeb3, Web3Provider, isLoading, hasError])
 
-  if (!needsWeb3 || hasError) {
-    return <>{children}</>
+  if (needsWeb3 && !hasError) {
+    if (isLoading || !Web3Provider) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground">Loading Web3 services...</p>
+          </div>
+        </div>
+      )
+    }
+
+    return <Web3Provider>{children}</Web3Provider>
   }
 
-  if (isLoading || !Web3Provider) {
-    return <>{children}</>
-  }
-
-  return <Web3Provider>{children}</Web3Provider>
+  return <>{children}</>
 }

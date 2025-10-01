@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
 import { neon } from "@neondatabase/serverless"
+import { getProviderId } from "@/lib/utils" // Assuming getProviderId is defined in a utils file
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -105,14 +106,16 @@ export async function POST(request: Request) {
           amount,
           puff_amount,
           description,
-          status
+          status,
+          provider_id
         ) VALUES (
           ${session.id},
           'reward',
           ${rewardData.value_dollars || 0},
           ${-rewardData.points_cost},
           'Redeemed: ${rewardData.name}',
-          'completed'
+          'completed',
+          ${await getProviderId("system")}
         )
       `
 

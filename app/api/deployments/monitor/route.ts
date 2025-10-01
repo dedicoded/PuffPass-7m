@@ -9,14 +9,15 @@ export async function GET(request: NextRequest) {
     const deploymentId = searchParams.get("deployment_id")
     const since = searchParams.get("since")
 
-    // Get recent deployment logs
     let logsQuery = `
       SELECT 
         id,
         deployment_id,
+        log_type,
         log_level,
         message,
-        timestamp
+        timestamp,
+        metadata
       FROM deployment_logs
       WHERE 1=1
     `
@@ -42,37 +43,54 @@ export async function GET(request: NextRequest) {
     const activeDeployments = await sql`
       SELECT 
         d.id,
-        d.deployment_url,
-        d.project_id,
+        d.project_name,
+        d.url as deployment_url,
         d.status,
         d.environment,
-        d.branch_name,
+        d.branch,
         d.created_at,
-        p.name as project_name
+        d.build_time,
+        d.deploy_time
       FROM deployments d
-      LEFT JOIN projects p ON d.project_id = p.id
-      WHERE d.status = 'building'
+      WHERE d.status IN ('pending', 'building')
       ORDER BY d.created_at DESC
     `
 
-    // Get recent metrics
     const metrics = await sql`
       SELECT 
         dm.deployment_id,
         dm.metric_name,
         dm.metric_value,
         dm.unit,
-        dm.recorded_at
+        dm.timestamp,
+        dm.metadata
       FROM deployment_metrics dm
-      WHERE dm.recorded_at > NOW() - INTERVAL '1 hour'
-      ORDER BY dm.recorded_at DESC
+      WHERE dm.timestamp > NOW() - INTERVAL '1 hour'
+      ORDER BY dm.timestamp DESC
       LIMIT 50
+    `
+
+    const alerts = await sql`
+      SELECT 
+        da.id,
+        da.deployment_id,
+        da.alert_type,
+        da.severity,
+        da.title,
+        da.description,
+        da.is_resolved,
+        da.created_at
+      FROM deployment_alerts da
+      WHERE da.is_resolved = false
+      ORDER BY da.created_at DESC
+      LIMIT 20
     `
 
     return NextResponse.json({
       logs,
       activeDeployments,
       metrics,
+      alerts,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
@@ -84,15 +102,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { deployment_id, log_level, message } = body
+    const { deployment_id, log_type = "runtime", log_level, message, metadata = {} } = body
 
     if (!deployment_id || !log_level || !message) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json({ error: "Missing required fields: deployment_id, log_level, message" }, { status: 400 })
     }
 
     const result = await sql`
-      INSERT INTO deployment_logs (deployment_id, log_level, message)
-      VALUES (${deployment_id}, ${log_level}, ${message})
+      INSERT INTO deployment_logs (deployment_id, log_type, log_level, message, metadata)
+      VALUES (${deployment_id}, ${log_type}, ${log_level}, ${message}, ${metadata})
       RETURNING *
     `
 

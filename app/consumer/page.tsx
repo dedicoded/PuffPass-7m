@@ -45,12 +45,16 @@ export default function ConsumerApp() {
   const [activity, setActivity] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [walletConnected, setWalletConnected] = useState(false)
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [paymentProcessing, setPaymentProcessing] = useState(false)
 
   // Mock user ID - in real app this would come from auth
   const userId = "user123"
 
   useEffect(() => {
     fetchConsumerData()
+    checkWalletConnection()
   }, [])
 
   const fetchConsumerData = async () => {
@@ -74,6 +78,74 @@ export default function ConsumerApp() {
       console.error("[v0] Failed to fetch consumer data:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const checkWalletConnection = async () => {
+    try {
+      const response = await fetch("/api/wallet/get-wallets")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.wallets && data.wallets.length > 0) {
+          setWalletConnected(true)
+          setWalletAddress(data.wallets[0].address)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Failed to check wallet connection:", error)
+    }
+  }
+
+  const handleTopUp = async () => {
+    if (!walletConnected) {
+      window.location.href = "/onboard"
+      return
+    }
+
+    setPaymentProcessing(true)
+    try {
+      const response = await fetch("/api/consumer/top-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          amount: 50, // $50 top-up
+          walletAddress,
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log("[v0] Top-up successful:", result)
+        fetchConsumerData()
+      }
+    } catch (error) {
+      console.error("[v0] Top-up failed:", error)
+    } finally {
+      setPaymentProcessing(false)
+    }
+  }
+
+  const handleRedeemReward = async (rewardId: string, pointsCost: number) => {
+    if (!balance || balance.total_points < pointsCost) return
+
+    try {
+      const response = await fetch("/api/consumer/rewards/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          rewardId,
+          pointsCost,
+        }),
+      })
+
+      if (response.ok) {
+        console.log("[v0] Reward redeemed successfully")
+        fetchConsumerData()
+      }
+    } catch (error) {
+      console.error("[v0] Failed to redeem reward:", error)
     }
   }
 
@@ -157,8 +229,11 @@ export default function ConsumerApp() {
               <Button
                 variant="secondary"
                 className="w-full bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+                onClick={handleTopUp}
+                disabled={paymentProcessing}
               >
-                Top Up Now - Earn Bonus Points <ArrowRight className="w-4 h-4 ml-2" />
+                {paymentProcessing ? "Processing..." : "Top Up Now - Earn Bonus Points"}{" "}
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
           </CardContent>
@@ -224,6 +299,7 @@ export default function ConsumerApp() {
                         <Button
                           className="w-full mt-3"
                           disabled={!balance || balance.total_points < reward.points_cost}
+                          onClick={() => handleRedeemReward(reward.id, reward.points_cost)}
                         >
                           {balance && balance.total_points >= reward.points_cost
                             ? "Redeem Now"

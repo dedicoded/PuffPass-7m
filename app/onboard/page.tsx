@@ -20,12 +20,48 @@ export default function OnboardPage() {
 
   const handleWalletConnect = async () => {
     setIsConnecting(true)
-    // Simulate wallet connection
-    setTimeout(() => {
-      setWalletAddress("0x742d35Cc6634C0532925a3b8D4C9db96590b5b8e")
-      setOnboardingStep("complete")
+    try {
+      // Simulate wallet connection with MetaMask/WalletConnect
+      if (typeof window !== "undefined" && (window as any).ethereum) {
+        const accounts = await (window as any).ethereum.request({
+          method: "eth_requestAccounts",
+        })
+
+        if (accounts.length > 0) {
+          const address = accounts[0]
+          setWalletAddress(address)
+
+          // Save wallet address to backend
+          const response = await fetch("/api/wallet/save-address", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ address }),
+          })
+
+          if (response.ok) {
+            const result = await response.json()
+
+            // Check if this is a trusted wallet (trustee)
+            if (result.isTrustee) {
+              // Redirect to trustee dashboard
+              window.location.href = "/trustee"
+              return
+            }
+          }
+
+          setOnboardingStep("complete")
+        }
+      } else {
+        // Fallback for demo
+        const demoAddress = "0x742d35Cc6634C0532925a3b8D4C9db96590b5b8e"
+        setWalletAddress(demoAddress)
+        setOnboardingStep("complete")
+      }
+    } catch (error) {
+      console.error("[v0] Wallet connection failed:", error)
+    } finally {
       setIsConnecting(false)
-    }, 2000)
+    }
   }
 
   const handleEmailSignup = async (e: React.FormEvent) => {
