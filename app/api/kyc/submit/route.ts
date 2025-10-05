@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 // Force cache break - Updated for deployment fix
 export async function POST(request: NextRequest) {
@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
     if (!userId || !firstName || !lastName || !dateOfBirth || !phone || !email) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
+
+    const sql = getSql()
 
     // Check if user already has a pending or approved verification
     const existingVerification = await sql`

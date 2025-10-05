@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
     }
+
+    const sql = getSql()
 
     let availableBalance = 0
     try {
@@ -132,6 +134,8 @@ export async function GET(request: NextRequest) {
     if (!session || session.role !== "merchant") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const sql = getSql()
 
     const result = await sql`
       SELECT 

@@ -1,6 +1,17 @@
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+let sql: ReturnType<typeof neon> | null = null
+
+function getSql() {
+  if (sql === null) {
+    if (!process.env.DATABASE_URL) {
+      console.warn("[AGE-VERIFICATION] DATABASE_URL not set, age verification logging will be disabled")
+      return null
+    }
+    sql = neon(process.env.DATABASE_URL)
+  }
+  return sql
+}
 
 interface LogAgeVerificationParams {
   userId?: string
@@ -23,8 +34,15 @@ export async function logAgeVerification({
   verified,
   auditEvent = {},
 }: LogAgeVerificationParams) {
+  const connection = getSql()
+
+  if (!connection) {
+    console.warn("[AGE-VERIFICATION] Skipping log - no database connection")
+    return
+  }
+
   try {
-    await sql`
+    await connection`
       INSERT INTO age_verification_logs (
         user_id, ip_address, user_agent, route, action, reason, verified, audit_event
       ) VALUES (

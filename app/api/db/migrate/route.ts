@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[v0] Executing migration script:", scriptName)
+
+    const sql = getSql()
 
     // Execute the SQL script within a transaction
     await sql.transaction(async (tx) => {

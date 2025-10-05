@@ -55,6 +55,9 @@ export function WalletConnectButton({
 
       const data = await response.json()
 
+      console.log("[v0] Wallet login response:", data)
+      console.log("[v0] User role from API:", data.user?.role)
+
       if (data.success) {
         onSuccess(data.user)
       } else {

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,18 +17,59 @@ export default function OnboardPage() {
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [isConnecting, setIsConnecting] = useState(false)
+  const [isSigningUp, setIsSigningUp] = useState(false)
+  const [signupError, setSignupError] = useState("")
+  const [wagmiHooks, setWagmiHooks] = useState<any>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    const loadWagmi = async () => {
+      try {
+        const wagmi = await import("wagmi")
+        setWagmiHooks(wagmi)
+      } catch (error) {
+        console.error("[v0] Failed to load wagmi:", error)
+      }
+    }
+    loadWagmi()
+  }, [])
+
+  useEffect(() => {
+    if (onboardingStep === "complete") {
+      console.log("[v0] Onboarding complete, redirecting to customer dashboard in 2 seconds...")
+      const redirectTimer = setTimeout(() => {
+        window.location.href = "/customer"
+      }, 2000)
+
+      return () => clearTimeout(redirectTimer)
+    }
+  }, [onboardingStep])
 
   const handleWalletConnect = async () => {
+    if (isConnecting) {
+      console.log("[v0] Connection already in progress, ignoring duplicate request")
+      return
+    }
+
     setIsConnecting(true)
+    console.log("[v0] Starting wallet connection...")
+
     try {
-      // Simulate wallet connection with MetaMask/WalletConnect
+      if (wagmiHooks && typeof window !== "undefined") {
+        // Wait a bit for wagmi to be ready
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+
       if (typeof window !== "undefined" && (window as any).ethereum) {
+        console.log("[v0] Requesting accounts from ethereum provider...")
         const accounts = await (window as any).ethereum.request({
           method: "eth_requestAccounts",
         })
 
         if (accounts.length > 0) {
           const address = accounts[0]
+          console.log("[v0] Wallet connected:", address)
           setWalletAddress(address)
 
           // Save wallet address to backend
@@ -53,20 +94,60 @@ export default function OnboardPage() {
         }
       } else {
         // Fallback for demo
+        console.log("[v0] No ethereum provider, using demo address")
         const demoAddress = "0x742d35Cc6634C0532925a3b8D4C9db96590b5b8e"
         setWalletAddress(demoAddress)
         setOnboardingStep("complete")
       }
-    } catch (error) {
-      console.error("[v0] Wallet connection failed:", error)
+    } catch (error: any) {
+      if (error.message?.includes("already pending")) {
+        console.log("[v0] Wallet connection request already pending, please wait...")
+      } else {
+        console.error("[v0] Wallet connection failed:", error)
+      }
     } finally {
-      setIsConnecting(false)
+      setTimeout(() => {
+        setIsConnecting(false)
+      }, 1000)
     }
   }
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    setOnboardingStep("complete")
+    setIsSigningUp(true)
+    setSignupError("")
+
+    try {
+      // Call the registration API to create user with embedded wallet
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: email.split("@")[0], // Use email prefix as name for now
+          email: email.trim().toLowerCase(),
+          password: Math.random().toString(36).slice(-12), // Generate random password for email-only signup
+          role: "customer",
+          phone: phone.trim(),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Set the embedded wallet address from the response
+        if (data.user?.embedded_wallet) {
+          setWalletAddress(data.user.embedded_wallet)
+        }
+        setOnboardingStep("complete")
+      } else {
+        setSignupError(data.error || "Failed to create account. Please try again.")
+      }
+    } catch (error) {
+      console.error("[v0] Email signup error:", error)
+      setSignupError("Network error. Please try again.")
+    } finally {
+      setIsSigningUp(false)
+    }
   }
 
   if (onboardingStep === "complete") {
@@ -83,12 +164,20 @@ export default function OnboardPage() {
           <CardContent className="space-y-4">
             {walletAddress && (
               <div className="p-3 bg-muted rounded-lg">
-                <Label className="text-sm font-medium">Connected Wallet</Label>
+                <Label className="text-sm font-medium">
+                  {walletAddress.startsWith("0x") ? "Connected Wallet" : "Embedded Wallet"}
+                </Label>
                 <p className="text-sm font-mono text-muted-foreground mt-1">
                   {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                 </p>
               </div>
             )}
+            <div className="text-center space-y-2">
+              <div className="animate-pulse text-sm text-muted-foreground">Redirecting to your dashboard...</div>
+              <div className="w-full bg-muted rounded-full h-1">
+                <div className="bg-primary h-1 rounded-full animate-[width_2s_ease-in-out]" style={{ width: "100%" }} />
+              </div>
+            </div>
             <Button className="w-full" asChild>
               <a href="/customer">Continue to Dashboard</a>
             </Button>
@@ -170,9 +259,22 @@ export default function OnboardPage() {
                         </div>
                       </div>
                       <Button className="w-full" onClick={handleWalletConnect} disabled={isConnecting}>
-                        {isConnecting ? "Connecting..." : "Connect Wallet"}
-                        <ArrowRight className="w-4 h-4 ml-2" />
+                        {isConnecting ? (
+                          <>
+                            <span className="animate-pulse">Connecting...</span>
+                          </>
+                        ) : (
+                          <>
+                            Connect Wallet
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </>
+                        )}
                       </Button>
+                      {isConnecting && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          Please check your wallet for the connection request
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -186,12 +288,17 @@ export default function OnboardPage() {
                         </div>
                         <div>
                           <CardTitle className="text-xl">Email & Phone Setup</CardTitle>
-                          <CardDescription>Create account with email and phone verification</CardDescription>
+                          <CardDescription>
+                            Create account with email - we'll create a secure wallet for you
+                          </CardDescription>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <form onSubmit={handleEmailSignup} className="space-y-4">
+                        {signupError && (
+                          <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">{signupError}</div>
+                        )}
                         <div className="space-y-2">
                           <Label htmlFor="email">Email Address</Label>
                           <Input
@@ -214,10 +321,13 @@ export default function OnboardPage() {
                             required
                           />
                         </div>
-                        <Button type="submit" className="w-full">
-                          Create Account
+                        <Button type="submit" className="w-full" disabled={isSigningUp}>
+                          {isSigningUp ? "Creating Account..." : "Create Account"}
                           <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
+                        <div className="text-xs text-muted-foreground text-center p-2 bg-muted rounded">
+                          A secure embedded wallet will be created automatically for your account
+                        </div>
                       </form>
                     </CardContent>
                   </Card>

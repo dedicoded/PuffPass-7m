@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[v0] Fetching withdrawals for merchant: ${session.id}`)
+
+    const sql = getSql()
 
     // Fetch withdrawal requests for the merchant with better error handling
     let requests
@@ -96,6 +98,8 @@ export async function POST(request: NextRequest) {
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
     }
+
+    const sql = getSql()
 
     // Check available balance with better error handling
     let availableBalance = 0

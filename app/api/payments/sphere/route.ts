@@ -1,10 +1,7 @@
-import { neon } from "@neondatabase/serverless"
-import { getProviderId } from "@/app/api/utils" // Assuming getProviderId is defined in a utils file
+import { getSql, getProviderId } from "@/lib/db"
 
 export async function POST(req: Request) {
   try {
-    const sql = neon(process.env.DATABASE_URL!)
-
     const { userId, amount, currency = "USD", walletAddress } = await req.json()
 
     console.log("[v0] Processing Sphere payment:", { userId, amount, currency, walletAddress })
@@ -13,14 +10,32 @@ export async function POST(req: Request) {
       return Response.json({ success: false, error: "Invalid payment parameters" }, { status: 400 })
     }
 
-    const providerId = await getProviderId("sphere")
+    let providerId
+    try {
+      console.log("[v0] Getting provider ID for sphere")
+      providerId = await getProviderId("sphere")
+      console.log("[v0] Provider ID obtained:", providerId)
+    } catch (providerError: any) {
+      console.error("[v0] Failed to get provider ID:", providerError)
+      console.error("[v0] Error details:", {
+        message: providerError.message,
+        code: providerError.code,
+        detail: providerError.detail,
+      })
+      return Response.json(
+        {
+          success: false,
+          error: `Database error: ${providerError.message || "Failed to get provider ID"}`,
+        },
+        { status: 500 },
+      )
+    }
 
     const sphereConfigured = process.env.SPHERE_API_KEY && process.env.SPHERE_API_URL
 
     if (!sphereConfigured) {
       console.warn("[v0] Sphere not fully configured - using test mode")
 
-      // Test mode transaction
       const testTransaction = {
         id: `test_sphere_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         status: "confirmed",
@@ -29,10 +44,16 @@ export async function POST(req: Request) {
         mode: "test",
       }
 
-      await sql`
-        INSERT INTO puff_transactions (user_id, transaction_type, amount, description, status, provider_id, created_at)
-        VALUES (${userId}, 'crypto_deposit', ${amount}, ${"Test Sphere payment: " + testTransaction.id}, ${testTransaction.status}, ${providerId}, NOW())
-      `
+      try {
+        const sql = getSql()
+        await sql`
+          INSERT INTO puff_transactions (user_id, transaction_type, amount, description, status, provider_id, created_at)
+          VALUES (${userId}, 'crypto_deposit', ${amount}, ${"Test Sphere payment: " + testTransaction.id}, ${testTransaction.status}, ${providerId}, NOW())
+        `
+        console.log("[v0] Test transaction recorded")
+      } catch (dbError: any) {
+        console.error("[v0] Database error (non-fatal):", dbError)
+      }
 
       return Response.json({ success: true, txn: testTransaction, mode: "test" }, { status: 200 })
     }
@@ -64,10 +85,16 @@ export async function POST(req: Request) {
     const spherePayment = await sphereResponse.json()
     console.log("[v0] Sphere payment created:", spherePayment.id)
 
-    await sql`
-      INSERT INTO puff_transactions (user_id, transaction_type, amount, description, status, provider_id, created_at)
-      VALUES (${userId}, 'crypto_deposit', ${amount}, ${"Sphere payment: " + spherePayment.id}, ${spherePayment.status}, ${providerId}, NOW())
-    `
+    try {
+      const sql = getSql()
+      await sql`
+        INSERT INTO puff_transactions (user_id, transaction_type, amount, description, status, provider_id, created_at)
+        VALUES (${userId}, 'crypto_deposit', ${amount}, ${"Sphere payment: " + spherePayment.id}, ${spherePayment.status}, ${providerId}, NOW())
+      `
+      console.log("[v0] Transaction recorded")
+    } catch (dbError: any) {
+      console.error("[v0] Database error (non-fatal):", dbError)
+    }
 
     return Response.json(
       {
@@ -84,6 +111,17 @@ export async function POST(req: Request) {
     )
   } catch (err: any) {
     console.error("[v0] Sphere payment error:", err)
-    return Response.json({ success: false, error: err.message || "Payment processing failed" }, { status: 500 })
+    console.error("[v0] Error details:", {
+      message: err?.message || "No message",
+      stack: err?.stack || "No stack",
+      name: err?.name || "No name",
+    })
+    return Response.json(
+      {
+        success: false,
+        error: err?.message || err?.toString() || "Payment processing failed",
+      },
+      { status: 500 },
+    )
   }
 }

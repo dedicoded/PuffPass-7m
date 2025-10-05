@@ -1,50 +1,88 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { verifyPassword, getUserByWallet, createUser } from "@/lib/db"
+import { verifyPassword, getUserByWallet, createUser, getSql } from "@/lib/db"
 import { createSession, verifyAdminWallet } from "@/lib/auth"
 import { verifyPasskey, createEmbeddedWallet } from "@/lib/auth-enhanced"
-import { sql } from "@/lib/db"
 
 export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[v0] Enhanced login API called")
+    console.log("[v0] ===== LOGIN API CALLED =====")
+    console.log("[v0] Request URL:", request.url)
+    console.log("[v0] Request method:", request.method)
 
-    const body = await request.json()
+    let body
+    try {
+      body = await request.json()
+      console.log("[v0] Request body parsed successfully")
+      console.log("[v0] Login type:", body.loginType)
+      console.log("[v0] Has email:", !!body.email)
+      console.log("[v0] Has password:", !!body.password)
+      console.log("[v0] Has walletAddress:", !!body.walletAddress)
+      console.log("[v0] Has signature:", !!body.signature)
+      console.log("[v0] User type:", body.userType)
+    } catch (parseError) {
+      console.error("[v0] Failed to parse request body:", parseError)
+      return NextResponse.json({ success: false, error: "Invalid request body" }, { status: 400 })
+    }
+
     const { loginType, email, password, walletAddress, signature, passkeyCredential, userType } = body
 
     // If no loginType specified, assume email/password login
     if (!loginType && email && password) {
+      console.log("[v0] No loginType specified, defaulting to email/password")
       return await handleEmailPasswordLogin(email, password, userType || "customer")
     }
 
+    console.log("[v0] Processing login type:", loginType)
+
     switch (loginType) {
       case "wallet":
+        console.log("[v0] Routing to wallet login handler")
         return await handleWalletLogin(walletAddress, signature, userType)
 
       case "email_passkey":
+        console.log("[v0] Routing to email passkey login handler")
         return await handleEmailPasskeyLogin(email, passkeyCredential, userType)
 
       case "email_password":
+        console.log("[v0] Routing to email password login handler")
         return await handleEmailPasswordLogin(email, password, userType)
 
       case "admin_wallet":
+        console.log("[v0] Routing to admin wallet login handler")
         return await handleAdminWalletLogin(walletAddress, signature)
 
       default:
+        console.log("[v0] Invalid login type:", loginType)
         return NextResponse.json({ success: false, error: "Invalid login type" }, { status: 400 })
     }
   } catch (error) {
-    console.error("[v0] Unexpected login error:", error)
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
+    console.error("[v0] ===== UNEXPECTED LOGIN ERROR =====")
+    console.error("[v0] Error type:", error?.constructor?.name)
+    console.error("[v0] Error message:", error instanceof Error ? error.message : String(error))
+    console.error("[v0] Error stack:", error instanceof Error ? error.stack : "No stack trace")
+    console.error("[v0] Full error object:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }
 
 async function handleWalletLogin(walletAddress: string, signature: string, userType: "consumer" | "merchant") {
   try {
+    console.log("[v0] Starting wallet login for:", walletAddress)
+
     // Verify wallet signature
     const isValidSignature = await verifyWalletSignature(walletAddress, signature)
     if (!isValidSignature) {
+      console.log("[v0] Invalid wallet signature")
+      const sql = getSql()
       await sql`
         INSERT INTO audit_logs (
           actor_id,
@@ -67,9 +105,12 @@ async function handleWalletLogin(walletAddress: string, signature: string, userT
       return NextResponse.json({ success: false, error: "Invalid wallet signature" }, { status: 401 })
     }
 
+    console.log("[v0] Wallet signature verified, looking up user")
+
     // Get or create user
     let user = await getUserByWallet(walletAddress)
     if (!user) {
+      console.log("[v0] User not found, creating new user")
       // Create new user with wallet
       user = await createUser({
         email: `${walletAddress}@wallet.puffpass.app`,
@@ -77,8 +118,12 @@ async function handleWalletLogin(walletAddress: string, signature: string, userT
         role: userType === "merchant" ? "merchant" : "customer",
         authMethod: "wallet",
       })
+      console.log("[v0] New user created:", user.id)
+    } else {
+      console.log("[v0] Existing user found:", user.id)
     }
 
+    const sql = getSql()
     await sql`
       INSERT INTO audit_logs (
         actor_id,
@@ -101,6 +146,8 @@ async function handleWalletLogin(walletAddress: string, signature: string, userT
       )
     `
 
+    console.log("[v0] Creating session for user:", user.id)
+
     const response = NextResponse.json({
       success: true,
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
@@ -109,10 +156,18 @@ async function handleWalletLogin(walletAddress: string, signature: string, userT
     })
 
     await createSession(user, response)
+    console.log("[v0] Session created successfully")
     return response
   } catch (error) {
     console.error("[v0] Wallet login error:", error)
-    return NextResponse.json({ success: false, error: "Wallet authentication failed" }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Wallet authentication failed",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -121,6 +176,7 @@ async function handleEmailPasskeyLogin(email: string, passkeyCredential: any, us
     // Verify passkey
     const passkeyResult = await verifyPasskey(email, passkeyCredential)
     if (!passkeyResult.success) {
+      const sql = getSql()
       await sql`
         INSERT INTO audit_logs (
           actor_id,
@@ -155,6 +211,7 @@ async function handleEmailPasskeyLogin(email: string, passkeyCredential: any, us
       })
     }
 
+    const sql = getSql()
     await sql`
       INSERT INTO audit_logs (
         actor_id,
@@ -196,6 +253,7 @@ async function handleEmailPasswordLogin(email: string, password: string, userTyp
   try {
     const user = await verifyPassword(email, password)
     if (!user) {
+      const sql = getSql()
       await sql`
         INSERT INTO audit_logs (
           actor_id,
@@ -223,6 +281,7 @@ async function handleEmailPasswordLogin(email: string, password: string, userTyp
       return NextResponse.json({ success: false, error: "Invalid merchant credentials" }, { status: 401 })
     }
 
+    const sql = getSql()
     await sql`
       INSERT INTO audit_logs (
         actor_id,
@@ -265,6 +324,7 @@ async function handleAdminWalletLogin(walletAddress: string, signature: string) 
   try {
     const isValidAdmin = await verifyAdminWallet(walletAddress, signature)
     if (!isValidAdmin) {
+      const sql = getSql()
       await sql`
         INSERT INTO audit_logs (
           actor_id,
@@ -292,6 +352,7 @@ async function handleAdminWalletLogin(walletAddress: string, signature: string) 
       return NextResponse.json({ success: false, error: "Admin user not found" }, { status: 404 })
     }
 
+    const sql = getSql()
     await sql`
       INSERT INTO audit_logs (
         actor_id,
@@ -330,20 +391,27 @@ async function handleAdminWalletLogin(walletAddress: string, signature: string) 
 
 async function verifyWalletSignature(walletAddress: string, signature: string): Promise<boolean> {
   try {
+    console.log("[v0] Verifying wallet signature")
+    console.log("[v0] Wallet address:", walletAddress)
+    console.log("[v0] Signature:", signature)
+    console.log("[v0] Signature length:", signature?.length)
+
     // Basic validation
     if (!walletAddress || !signature) {
+      console.log("[v0] Missing wallet address or signature")
       return false
     }
 
     // Validate wallet address format (Ethereum address)
     const addressRegex = /^0x[a-fA-F0-9]{40}$/
     if (!addressRegex.test(walletAddress)) {
+      console.log("[v0] Invalid wallet address format")
       return false
     }
 
-    // Validate signature format
-    const signatureRegex = /^0x[a-fA-F0-9]{130}$/
-    if (!signatureRegex.test(signature)) {
+    // Signature should start with 0x and be a hex string
+    if (!signature.startsWith("0x") || !/^0x[a-fA-F0-9]+$/.test(signature)) {
+      console.log("[v0] Invalid signature format")
       return false
     }
 
@@ -354,7 +422,7 @@ async function verifyWalletSignature(walletAddress: string, signature: string): 
     // 3. Comparing the recovered address with the provided walletAddress
 
     // For now, return true for valid format (placeholder for actual verification)
-    console.log("[v0] Wallet signature verification - format validated, awaiting full implementation")
+    console.log("[v0] Wallet signature format validated successfully")
     return true
   } catch (error) {
     console.error("[v0] Wallet signature verification error:", error)

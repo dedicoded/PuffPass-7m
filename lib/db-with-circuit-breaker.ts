@@ -1,7 +1,17 @@
 import { neon } from "@neondatabase/serverless"
 import { CircuitBreaker, type CircuitBreakerConfig } from "./circuit-breaker"
 
-const sql = neon(process.env.DATABASE_URL!)
+let _sql: ReturnType<typeof neon> | null = null
+
+function getSql() {
+  if (!_sql) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL not set")
+    }
+    _sql = neon(process.env.DATABASE_URL)
+  }
+  return _sql
+}
 
 // Circuit breaker configuration for database operations
 const dbCircuitBreakerConfig: CircuitBreakerConfig = {
@@ -21,12 +31,13 @@ const writeCircuitBreaker = new CircuitBreaker("database-write", {
 
 // Circuit breaker protected SQL execution
 export async function executeQuery<T = any>(
-  query: Parameters<typeof sql>[0],
-  ...params: Parameters<typeof sql> extends [any, ...infer Rest] ? Rest : never[]
+  query: Parameters<ReturnType<typeof neon>>[0],
+  ...params: Parameters<ReturnType<typeof neon>> extends [any, ...infer Rest] ? Rest : never[]
 ): Promise<T[]> {
   return await readCircuitBreaker.execute(
     async () => {
       console.log(`[v0] Executing database query with circuit breaker protection`)
+      const sql = getSql()
       return (await sql(query, ...params)) as T[]
     },
     async () => {
@@ -39,12 +50,13 @@ export async function executeQuery<T = any>(
 }
 
 export async function executeWrite<T = any>(
-  query: Parameters<typeof sql>[0],
-  ...params: Parameters<typeof sql> extends [any, ...infer Rest] ? Rest : never[]
+  query: Parameters<ReturnType<typeof neon>>[0],
+  ...params: Parameters<ReturnType<typeof neon>> extends [any, ...infer Rest] ? Rest : never[]
 ): Promise<T[]> {
   return await writeCircuitBreaker.execute(
     async () => {
       console.log(`[v0] Executing database write with circuit breaker protection`)
+      const sql = getSql()
       return (await sql(query, ...params)) as T[]
     },
     async () => {

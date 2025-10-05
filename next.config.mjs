@@ -45,12 +45,22 @@ const nextConfig = {
     config.resolve.alias = config.resolve.alias || {}
     
     if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'crypto': 'crypto-browserify',
+        'node:crypto': 'crypto-browserify',
+        'node:buffer': 'buffer',
+        'node:stream': 'stream-browserify',
+        'stripe': false,
+        '@stripe/stripe-js': false,
+        '@stripe/react-stripe-js': false,
+      }
+      
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        // Allow crypto for Web3 but use browser-compatible version
-        crypto: require.resolve('crypto-browserify'),
-        stream: require.resolve('stream-browserify'),
-        buffer: require.resolve('buffer'),
+        crypto: 'crypto-browserify',
+        stream: 'stream-browserify',
+        buffer: 'buffer',
         // Block server-only modules
         assert: false,
         http: false,
@@ -62,35 +72,11 @@ const nextConfig = {
         net: false,
         tls: false,
         child_process: false,
-        // Block problematic crypto modules that cause MIME issues
+        // Block problematic modules that cause MIME issues
         '@react-native-async-storage/async-storage': false,
         'pino-pretty': false,
-        '@stablelib/random': false,
-        '@stablelib/x25519': false,
-        '@stablelib/chacha20poly1305': false,
-        '@stablelib/hkdf': false,
-        '@stablelib/sha256': false,
-        '@noble/curves': false,
-        '@noble/hashes': false,
-        'node:crypto': false,
-        'node:buffer': false,
         'node:process': false,
         'node:util': false,
-        'stripe': false,
-        '@stripe/stripe-js': false,
-        '@stripe/react-stripe-js': false,
-      }
-      
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        '@stablelib/random': false,
-        '@stablelib/x25519': false,
-        '@stablelib/chacha20poly1305': false,
-        '@stablelib/hkdf': false,
-        '@stablelib/sha256': false,
-        'stripe': false,
-        '@stripe/stripe-js': false,
-        '@stripe/react-stripe-js': false,
       }
     }
     

@@ -1,11 +1,6 @@
 "use client"
 
 import type React from "react"
-import { WagmiProvider } from "wagmi"
-import { mainnet, polygon, sepolia } from "wagmi/chains"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { createWeb3Modal } from "@web3modal/wagmi/react"
-import { defaultWagmiConfig } from "@web3modal/wagmi/react/config"
 import { useState, useEffect, createContext, useContext } from "react"
 
 export type Web3HealthStatus = {
@@ -26,85 +21,25 @@ export function useWeb3Health(): Web3HealthStatus | null {
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo-project-id"
 
 function isCryptoAvailable() {
-  try {
-    if (typeof window !== "undefined") {
-      // Check for native browser crypto APIs
-      const hasCrypto = !!(window.crypto && window.crypto.getRandomValues)
-
-      // Additional check for Web3 compatibility
-      const hasSubtleCrypto = !!(window.crypto && window.crypto.subtle)
-
-      console.log("[v0] Crypto availability check:", { hasCrypto, hasSubtleCrypto })
-
-      return hasCrypto
-    }
-    return false
-  } catch (error) {
-    console.warn("[v0] Crypto availability check failed:", error)
-    return false
-  }
+  if (typeof window === "undefined") return false
+  return !!(window.crypto && window.crypto.getRandomValues)
 }
-
-const metadata = {
-  name: "PuffPass",
-  description: "Cannabis compliance and payment platform",
-  url: typeof window !== "undefined" ? window.location.origin : "https://puffpass.app",
-  icons: [`${typeof window !== "undefined" ? window.location.origin : "https://puffpass.app"}/icon.png`],
-}
-
-const chains = [mainnet, polygon, sepolia] as const
-
-let config: any = null
-let configError: string | null = null
-
-try {
-  // Only create config if crypto is available and we're not in a problematic environment
-  if (typeof window === "undefined" || isCryptoAvailable()) {
-    config = defaultWagmiConfig({
-      chains,
-      projectId,
-      metadata,
-      enableWalletConnect: true,
-      enableInjected: true,
-      enableEIP6963: false, // This can cause crypto module issues
-      enableCoinbase: false, // This can cause crypto module issues
-    })
-    console.log("[v0] Wagmi config created successfully")
-  } else {
-    configError = "Browser crypto APIs not available"
-    console.warn("[v0] Skipping wagmi config creation:", configError)
-  }
-} catch (error) {
-  configError = error instanceof Error ? error.message : "Unknown configuration error"
-  console.warn("[v0] Wagmi config creation failed:", configError)
-}
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-})
 
 async function safeHealthLog(metrics: any) {
   try {
-    // Only attempt logging if we're in a server environment with database
     if (typeof window === "undefined" && process.env.DATABASE_URL) {
       const { Web3HealthLogger } = await import("@/lib/web3-health-logger")
       await Web3HealthLogger.logHealthMetric(metrics)
-    } else {
-      console.log("[v0] Health logging skipped (client-side or no database)")
     }
   } catch (error) {
     console.warn("[v0] Health logging unavailable:", error instanceof Error ? error.message : "Unknown error")
-    // Don't fail the app due to logging issues
   }
 }
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
+  const [hasWeb3, setHasWeb3] = useState(false)
+  const [Web3Components, setWeb3Components] = useState<any>(null)
   const [healthStatus, setHealthStatus] = useState<Web3HealthStatus>({
     isHealthy: false,
     status: "initializing",
@@ -118,97 +53,99 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
       const startTime = Date.now()
 
       try {
-        console.log("[v0] Initializing Web3Modal...")
+        console.log("[v0] Initializing wagmi with native connectors...")
 
         if (!isCryptoAvailable()) {
-          console.warn("[v0] Browser crypto not available - Web3 functionality will be limited")
-
-          setHealthStatus((prev) => ({
-            ...prev,
+          console.warn("[v0] Browser crypto not available")
+          setHealthStatus({
+            isHealthy: false,
             status: "unavailable",
             error: "Browser crypto APIs not available",
             lastChecked: new Date(),
-          }))
-
-          setIsInitialized(true)
-          return
-        }
-
-        if (!config || configError) {
-          console.warn("[v0] Wagmi config not available:", configError)
-
-          setHealthStatus((prev) => ({
-            ...prev,
-            status: "unavailable",
-            error: configError || "Wagmi configuration failed",
-            lastChecked: new Date(),
-          }))
-
-          setIsInitialized(true)
-          return
-        }
-
-        // Check if we're using demo project ID
-        if (projectId === "demo-project-id") {
-          console.warn(
-            "[v0] Using demo WalletConnect project ID - set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID for production",
-          )
-
-          setHealthStatus((prev) => ({
-            ...prev,
-            status: "unavailable",
-            error: "Demo project ID in use - WalletConnect may be unreliable",
-            lastChecked: new Date(),
-          }))
-        }
-
-        try {
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 3000)
-
-          const connectivityTest = await fetch("https://api.walletconnect.com/health", {
-            method: "GET",
-            signal: controller.signal,
-          })
-
-          clearTimeout(timeoutId)
-
-          if (!connectivityTest?.ok) {
-            console.warn("[v0] WalletConnect API health check failed, but continuing...")
-          }
-        } catch (error) {
-          console.warn("[v0] WalletConnect connectivity test failed:", error)
-          // Continue anyway - this is just a health check
-        }
-
-        try {
-          createWeb3Modal({
-            wagmiConfig: config,
             projectId,
-            enableAnalytics: false, // Disable analytics to avoid network issues
-            themeMode: "light",
-            themeVariables: {
-              "--w3m-font-family": "system-ui, sans-serif",
-              "--w3m-border-radius-master": "8px",
-            },
+            isDemo: projectId === "demo-project-id",
           })
-          console.log("[v0] Web3Modal created successfully")
-        } catch (modalError) {
-          console.warn("[v0] Web3Modal creation failed:", modalError)
-
-          setHealthStatus((prev) => ({
-            ...prev,
-            status: "error",
-            error: `Web3Modal initialization failed: ${modalError instanceof Error ? modalError.message : "Unknown error"}`,
-            lastChecked: new Date(),
-          }))
-
           setIsInitialized(true)
           return
         }
+
+        const [wagmi, tanstackQuery, wagmiChains, wagmiConnectors] = await Promise.all([
+          import("wagmi").catch((err) => {
+            console.error("[v0] Failed to import wagmi:", err)
+            return null
+          }),
+          import("@tanstack/react-query").catch((err) => {
+            console.error("[v0] Failed to import react-query:", err)
+            return null
+          }),
+          import("wagmi/chains").catch((err) => {
+            console.error("[v0] Failed to import wagmi chains:", err)
+            return null
+          }),
+          import("wagmi/connectors").catch((err) => {
+            console.error("[v0] Failed to import wagmi connectors:", err)
+            return null
+          }),
+        ])
+
+        if (!wagmi || !tanstackQuery || !wagmiChains || !wagmiConnectors) {
+          console.warn("[v0] Web3 dependencies failed to load - continuing without Web3")
+          setHealthStatus({
+            isHealthy: false,
+            status: "unavailable",
+            error: "Web3 dependencies failed to load",
+            lastChecked: new Date(),
+            projectId,
+            isDemo: projectId === "demo-project-id",
+          })
+          setIsInitialized(true)
+          return
+        }
+
+        const { WagmiProvider, http, createConfig } = wagmi
+        const { QueryClient, QueryClientProvider } = tanstackQuery
+        const { mainnet, polygon, sepolia } = wagmiChains
+        const { injected, walletConnect } = wagmiConnectors
+
+        const config = createConfig({
+          chains: [mainnet, polygon, sepolia],
+          connectors: [
+            injected(),
+            // Only add WalletConnect if we have a real project ID
+            ...(projectId !== "demo-project-id"
+              ? [
+                  walletConnect({
+                    projectId,
+                    metadata: {
+                      name: "PuffPass",
+                      description: "Cannabis compliance and payment platform",
+                      url: typeof window !== "undefined" ? window.location.origin : "https://puffpass.app",
+                      icons: [
+                        `${typeof window !== "undefined" ? window.location.origin : "https://puffpass.app"}/icon.png`,
+                      ],
+                    },
+                  }),
+                ]
+              : []),
+          ],
+          transports: {
+            [mainnet.id]: http(),
+            [polygon.id]: http(),
+            [sepolia.id]: http(),
+          },
+        })
+
+        const queryClient = new QueryClient({
+          defaultOptions: {
+            queries: {
+              retry: 1,
+              refetchOnWindowFocus: false,
+            },
+          },
+        })
 
         const finalLatency = Date.now() - startTime
-        console.log(`[v0] Web3Modal initialized successfully in ${finalLatency}ms`)
+        console.log(`[v0] Wagmi initialized successfully in ${finalLatency}ms`)
 
         await safeHealthLog({
           status: "connected",
@@ -216,34 +153,41 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           errorCount: 0,
           projectId,
           isDemo: projectId === "demo-project-id",
-          provider: "walletconnect",
+          provider: "wagmi-native",
           connectionAttempts: 1,
           successfulConnections: 1,
           failedConnections: 0,
           uptimePercentage: 100,
           operator: "system",
           checkType: "automated",
-          environment: process.env.NODE_ENV || "development",
           metadata: {
             initialization_time_ms: finalLatency,
             api_health_check: "passed",
           },
         })
 
-        setHealthStatus((prev) => ({
-          ...prev,
+        setHealthStatus({
           isHealthy: true,
           status: "connected",
           error: undefined,
           lastChecked: new Date(),
-        }))
+          projectId,
+          isDemo: projectId === "demo-project-id",
+        })
 
+        setWeb3Components({
+          WagmiProvider,
+          QueryClientProvider,
+          config,
+          queryClient,
+        })
+        setHasWeb3(true)
         setIsInitialized(true)
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown initialization error"
         const finalLatency = Date.now() - startTime
 
-        console.error("[v0] Web3Modal initialization failed:", errorMessage)
+        console.error("[v0] Wagmi initialization failed:", errorMessage)
 
         await safeHealthLog({
           status: "error",
@@ -252,78 +196,33 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           errorCount: 1,
           projectId,
           isDemo: projectId === "demo-project-id",
-          provider: "walletconnect",
+          provider: "wagmi-native",
           connectionAttempts: 1,
           successfulConnections: 0,
           failedConnections: 1,
           uptimePercentage: 0,
           operator: "system",
           checkType: "automated",
-          environment: process.env.NODE_ENV || "development",
           metadata: {
             error_type: error instanceof Error ? error.constructor.name : "UnknownError",
             initialization_failed: true,
           },
         })
 
-        setHealthStatus((prev) => ({
-          ...prev,
+        setHealthStatus({
           isHealthy: false,
           status: "error",
           error: errorMessage,
           lastChecked: new Date(),
-        }))
+          projectId,
+          isDemo: projectId === "demo-project-id",
+        })
 
-        // Still allow app to load without Web3
         setIsInitialized(true)
       }
     }
 
     initializeWeb3()
-
-    const healthCheckInterval = setInterval(
-      async () => {
-        try {
-          const startTime = Date.now()
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-          const healthCheck = await fetch("https://api.walletconnect.com/health", {
-            method: "GET",
-            signal: controller.signal,
-          })
-
-          clearTimeout(timeoutId)
-          const latency = Date.now() - startTime
-          const isHealthy = healthCheck.ok
-
-          // Safe health logging for periodic checks
-          await safeHealthLog({
-            status: isHealthy ? "connected" : "error",
-            latency,
-            errorCount: isHealthy ? 0 : 1,
-            projectId,
-            isDemo: projectId === "demo-project-id",
-            provider: "walletconnect",
-            connectionAttempts: 1,
-            successfulConnections: isHealthy ? 1 : 0,
-            failedConnections: isHealthy ? 0 : 1,
-            operator: "system",
-            checkType: "scheduled",
-            environment: process.env.NODE_ENV || "development",
-            metadata: {
-              periodic_check: true,
-              http_status: healthCheck.status,
-            },
-          })
-        } catch (error) {
-          console.error("[v0] Periodic Web3 health check failed:", error)
-        }
-      },
-      5 * 60 * 1000,
-    ) // 5 minutes
-
-    return () => clearInterval(healthCheckInterval)
   }, [])
 
   if (!isInitialized) {
@@ -332,17 +231,17 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
           <p className="text-slate-600">Initializing PuffPass...</p>
-          {healthStatus.status === "initializing" && (
-            <p className="text-xs text-slate-400 mt-2">Connecting to Web3 services...</p>
-          )}
+          <p className="text-xs text-slate-400 mt-2">Connecting to Web3 services...</p>
         </div>
       </div>
     )
   }
 
-  if (!config || healthStatus.status === "unavailable") {
+  if (!hasWeb3 || !Web3Components) {
     return <Web3HealthContext.Provider value={healthStatus}>{children}</Web3HealthContext.Provider>
   }
+
+  const { WagmiProvider, QueryClientProvider, config, queryClient } = Web3Components
 
   return (
     <Web3HealthContext.Provider value={healthStatus}>

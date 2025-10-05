@@ -4,69 +4,187 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Wallet, ExternalLink, CheckCircle, Copy, Contact as Disconnect, AlertTriangle } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Wallet, CheckCircle, Copy, LogOut, AlertTriangle, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 interface WalletConnectButtonProps {
   onConnect?: (walletId: string, address: string) => void
   onDisconnect?: () => void
   showBalance?: boolean
+  autoLogin?: boolean
 }
 
-export function WalletConnectButton({ onConnect, onDisconnect, showBalance = false }: WalletConnectButtonProps) {
+export function WalletConnectButton({
+  onConnect,
+  onDisconnect,
+  showBalance = false,
+  autoLogin = false,
+}: WalletConnectButtonProps) {
   const [mounted, setMounted] = useState(false)
   const [web3Available, setWeb3Available] = useState(false)
-  const [address, setAddress] = useState<string | null>(null)
-  const [isConnected, setIsConnected] = useState(false)
-  const [connector, setConnector] = useState<any>(null)
+  const [hooks, setHooks] = useState<any>(null)
 
   useEffect(() => {
     setMounted(true)
 
-    const checkWeb3Availability = async () => {
+    const loadWeb3 = async () => {
       try {
-        // Check if wagmi hooks are available
-        const { useAccount, useDisconnect, useWeb3Modal } = await import("wagmi")
-        const { useWeb3Modal: useModal } = await import("@web3modal/wagmi/react")
-
+        const wagmi = await import("wagmi")
+        setHooks(wagmi)
         setWeb3Available(true)
-
-        // If available, set up the hooks
-        const { useAccount: useAccountHook, useDisconnect: useDisconnectHook } = await import("wagmi")
-        const { useWeb3Modal: useWeb3ModalHook } = await import("@web3modal/wagmi/react")
-
-        // Note: In a real implementation, you'd use these hooks directly
-        // This is a simplified version for error handling
       } catch (error) {
         console.warn("[v0] Web3 functionality not available:", error)
         setWeb3Available(false)
       }
     }
 
-    checkWeb3Availability()
+    loadWeb3()
   }, [])
 
-  const handleConnect = () => {
-    if (!web3Available) {
-      toast.error("Web3 functionality is not available in this browser")
-      return
-    }
+  if (!mounted) {
+    return (
+      <Button disabled size="lg">
+        <Wallet className="w-4 h-4 mr-2" />
+        Loading...
+      </Button>
+    )
+  }
 
+  if (!web3Available || !hooks) {
+    return (
+      <Card className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800">
+        <CardContent className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <h3 className="font-medium text-yellow-800 dark:text-yellow-200">Web3 Unavailable</h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                Wallet connection is not available in this browser environment
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <WalletConnectButtonInner hooks={hooks} onConnect={onConnect} onDisconnect={onDisconnect} autoLogin={autoLogin} />
+  )
+}
+
+function WalletConnectButtonInner({
+  hooks,
+  onConnect,
+  onDisconnect,
+  autoLogin = false,
+}: {
+  hooks: any
+  onConnect?: (walletId: string, address: string) => void
+  onDisconnect?: () => void
+  autoLogin?: boolean
+}) {
+  const { useAccount, useConnect, useDisconnect } = hooks
+  const { address, isConnected, connector } = useAccount()
+  const { connect, connectors, isPending } = useConnect()
+  const { disconnect } = useDisconnect()
+  const router = useRouter()
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
+
+  useEffect(() => {
+    if (autoLogin && isConnected && address && !isAuthenticating) {
+      handleAuthentication(address)
+    }
+  }, [autoLogin, isConnected, address])
+
+  const handleAuthentication = async (walletAddress: string) => {
     try {
-      // In a real implementation, this would call open() from useWeb3Modal
-      toast.info("Web3 connection would open here")
+      setIsAuthenticating(true)
+      console.log("[v0] Starting wallet authentication for:", walletAddress)
+
+      if (!window.ethereum) {
+        throw new Error("MetaMask or compatible wallet not detected")
+      }
+
+      // Sign message to verify wallet ownership
+      const message = `Puff Pass Login - ${Date.now()}`
+      const signature = await window.ethereum.request({
+        method: "personal_sign",
+        params: [message, walletAddress],
+      })
+
+      console.log("[v0] Message signed, calling login API")
+
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loginType: "wallet",
+          walletAddress,
+          signature,
+          message,
+          userType: "consumer", // Default to consumer, can be changed based on context
+        }),
+      })
+
+      let data
+      const contentType = response.headers.get("content-type")
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json()
+      } else {
+        // If response is not JSON, try to get text and create error object
+        const text = await response.text()
+        console.error("[v0] Non-JSON error response:", text)
+        data = {
+          success: false,
+          error: text || "Server error occurred",
+        }
+      }
+
+      console.log("[v0] Wallet authentication response:", data)
+
+      if (data.success) {
+        toast.success("Successfully logged in!")
+        // Redirect based on user role
+        if (data.user?.role === "admin") {
+          router.push("/admin")
+        } else if (data.user?.role === "merchant") {
+          router.push("/merchant")
+        } else {
+          router.push("/consumer")
+        }
+      } else {
+        throw new Error(data.error || "Wallet authentication failed")
+      }
+    } catch (err: any) {
+      console.error("[v0] Wallet authentication error:", err)
+      toast.error(err.message || "Failed to authenticate wallet")
+    } finally {
+      setIsAuthenticating(false)
+    }
+  }
+
+  const handleConnect = (connector: any) => {
+    try {
+      connect({ connector })
+      if (address) {
+        onConnect?.(connector.id, address)
+        toast.success(`Connected to ${connector.name}`)
+      }
     } catch (error) {
-      console.error("[v0] Failed to open Web3 modal:", error)
-      toast.error("Failed to open wallet connection")
+      console.error("[v0] Failed to connect wallet:", error)
+      toast.error("Failed to connect wallet")
     }
   }
 
   const handleDisconnect = () => {
     try {
-      // In a real implementation, this would call disconnect()
-      setIsConnected(false)
-      setAddress(null)
-      setConnector(null)
+      disconnect()
       onDisconnect?.()
       toast.success("Wallet disconnected")
     } catch (error) {
@@ -86,28 +204,17 @@ export function WalletConnectButton({ onConnect, onDisconnect, showBalance = fal
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
   }
 
-  if (!mounted) {
+  if (isAuthenticating) {
     return (
-      <Button disabled className="w-full" size="lg">
-        <Wallet className="w-4 h-4 mr-2" />
-        Loading...
-      </Button>
-    )
-  }
-
-  if (!web3Available) {
-    return (
-      <Card className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800">
+      <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-pulse" />
             </div>
             <div>
-              <h3 className="font-medium text-yellow-800 dark:text-yellow-200">Web3 Unavailable</h3>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                Wallet connection is not available in this browser environment
-              </p>
+              <h3 className="font-medium text-blue-800 dark:text-blue-200">Authenticating...</h3>
+              <p className="text-sm text-blue-700 dark:text-blue-300">Please sign the message in your wallet</p>
             </div>
           </div>
         </CardContent>
@@ -149,25 +256,15 @@ export function WalletConnectButton({ onConnect, onDisconnect, showBalance = fal
                 </div>
               </div>
             </div>
-            <div className="flex space-x-2">
-              <Button
-                onClick={handleConnect}
-                variant="outline"
-                size="sm"
-                className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900 bg-transparent"
-              >
-                Switch
-                <ExternalLink className="w-3 h-3 ml-1" />
-              </Button>
-              <Button
-                onClick={handleDisconnect}
-                variant="outline"
-                size="sm"
-                className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900 bg-transparent"
-              >
-                <Disconnect className="w-3 h-3" />
-              </Button>
-            </div>
+            <Button
+              onClick={handleDisconnect}
+              variant="outline"
+              size="sm"
+              className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900 bg-transparent"
+            >
+              <LogOut className="w-3 h-3 mr-1" />
+              Disconnect
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -175,9 +272,28 @@ export function WalletConnectButton({ onConnect, onDisconnect, showBalance = fal
   }
 
   return (
-    <Button onClick={handleConnect} className="w-full" size="lg">
-      <Wallet className="w-4 h-4 mr-2" />
-      Connect Wallet
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="lg" disabled={isPending}>
+          <Wallet className="w-4 h-4 mr-2" />
+          {isPending ? "Connecting..." : "Connect Wallet"}
+          <ChevronDown className="w-4 h-4 ml-2" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        {connectors.map((connector) => (
+          <DropdownMenuItem key={connector.id} onClick={() => handleConnect(connector)} className="cursor-pointer">
+            <Wallet className="w-4 h-4 mr-2" />
+            {connector.name}
+          </DropdownMenuItem>
+        ))}
+        {connectors.length === 0 && (
+          <DropdownMenuItem disabled>
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            No wallets available
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

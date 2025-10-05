@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 import { put } from "@vercel/blob"
 
 export async function POST(request: NextRequest) {
@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
     if (file.size > maxSize) {
       return NextResponse.json({ error: "File size too large. Maximum size is 10MB" }, { status: 400 })
     }
+
+    const sql = getSql()
 
     const verification = await sql`
       SELECT id, user_id FROM kyc_verifications 

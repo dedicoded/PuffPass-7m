@@ -1,8 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
+    const sql = getSql()
+
     // Get all KYC verifications for admin review
     const verifications = await sql`
       SELECT 
@@ -55,6 +57,8 @@ export async function POST(request: NextRequest) {
     }
 
     const newStatus = action === "approve" ? "approved" : "rejected"
+
+    const sql = getSql()
 
     // Update verification status
     await sql`

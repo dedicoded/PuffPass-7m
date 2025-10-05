@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -18,15 +19,42 @@ interface LoginSelectorProps {
 
 export function LoginSelector({ userType, onSuccess }: LoginSelectorProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const handleLoginSuccess = (user: any) => {
+    console.log("[v0] LoginSelector - handleLoginSuccess called")
+    console.log("[v0] LoginSelector - Full user object:", JSON.stringify(user, null, 2))
+    console.log("[v0] LoginSelector - User role:", user?.role)
+    console.log("[v0] LoginSelector - User role type:", typeof user?.role)
+
     setIsLoading(false)
+
     onSuccess(user)
+
+    setTimeout(() => {
+      console.log("[v0] LoginSelector - Starting redirect for role:", user?.role)
+
+      const role = user?.role?.toLowerCase()
+
+      if (role === "customer") {
+        console.log("[v0] LoginSelector - Redirecting to /customer")
+        router.push("/customer")
+      } else if (role === "merchant") {
+        console.log("[v0] LoginSelector - Redirecting to /merchant")
+        router.push("/merchant")
+      } else if (role === "admin") {
+        console.log("[v0] LoginSelector - Redirecting to /admin")
+        router.push("/admin")
+      } else {
+        console.log("[v0] LoginSelector - No matching role, redirecting to /dashboard")
+        router.push("/dashboard")
+      }
+    }, 100)
   }
 
   const handleLoginError = (error: string) => {
     setIsLoading(false)
-    console.error("Login error:", error)
+    console.error("[v0] LoginSelector - Login error:", error)
   }
 
   if (userType === "admin") {

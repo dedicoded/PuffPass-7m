@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { neon } from "@neondatabase/serverless"
-import { getProviderId } from "@/lib/utils" // Assuming getProviderId is defined in a utils file
-
-const sql = neon(process.env.DATABASE_URL!)
+import { getSql, getProviderId } from "@/lib/db"
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +14,8 @@ export async function POST(request: Request) {
     if (!rewardId) {
       return NextResponse.json({ error: "Reward ID is required" }, { status: 400 })
     }
+
+    const sql = getSql()
 
     // Start transaction
     await sql`BEGIN`

@@ -1,10 +1,9 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
-import { sql, createUser, getUserByEmail } from "@/lib/db"
+import { getSql, createUser, getUserByEmail, getProviderId } from "@/lib/db"
 import { hashPassword } from "@/lib/auth-utils"
 import { createSession } from "@/lib/auth"
 import { createEmbeddedWallet } from "@/lib/auth-enhanced"
-import { getProviderId } from "@/lib/provider-utils" // Assuming getProviderId is imported from provider-utils
 
 export const runtime = "nodejs"
 
@@ -45,6 +44,7 @@ export async function POST(request: NextRequest) {
     // Test database connection
     console.log("[v0] Testing database connection...")
     try {
+      const sql = getSql()
       const testResult = await sql`SELECT 1 as test`
       console.log("[v0] Database connection test successful:", testResult)
     } catch (dbError) {
@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
         console.log("[v0] Creating welcome bonus transaction...")
         const systemProviderId = await getProviderId("system")
 
+        const sql = getSql()
         await sql`
           INSERT INTO puff_transactions (
             user_id,

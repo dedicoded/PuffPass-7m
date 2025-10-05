@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
     if (!merchantId) {
       return NextResponse.json({ error: "Merchant ID required" }, { status: 400 })
     }
+
+    const sql = getSql()
 
     // Get total sales and orders
     const salesData = await sql`

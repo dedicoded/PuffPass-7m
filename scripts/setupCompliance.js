@@ -16,15 +16,14 @@
 import dotenv from "dotenv"
 dotenv.config()
 
-import { neon } from "@neondatabase/serverless"
+import pg from "pg"
+const { Client } = pg
 import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-const sql = neon(process.env.DATABASE_URL)
 
 // Migration files in order
 const MIGRATIONS = [
@@ -34,7 +33,7 @@ const MIGRATIONS = [
   "15-create-compliance-views.sql",
 ]
 
-async function runMigration(filename) {
+async function runMigration(client, filename) {
   const filepath = path.join(__dirname, filename)
 
   console.log(`\n📦 Running migration: ${filename}`)
@@ -61,8 +60,7 @@ async function runMigration(filename) {
       }
     }
 
-    // Run the migration
-    await sql(sqlContent)
+    await client.query(sqlContent)
     console.log(`✅ Successfully applied: ${filename}`)
     return { success: true }
   } catch (error) {
@@ -90,48 +88,60 @@ async function setupCompliance() {
   console.log("3. Compliance views (summary, suspicious IPs)")
   console.log("")
 
-  const results = {
-    total: MIGRATIONS.length,
-    success: 0,
-    skipped: 0,
-    alreadyApplied: 0,
-    failed: 0,
-  }
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  })
 
-  // Run migrations in order
-  for (const migration of MIGRATIONS) {
-    const result = await runMigration(migration)
+  try {
+    await client.connect()
+    console.log("✅ Connected to database\n")
 
-    if (result.success) {
-      results.success++
-      if (result.skipped) results.skipped++
-      if (result.alreadyApplied) results.alreadyApplied++
-    } else {
-      results.failed++
+    const results = {
+      total: MIGRATIONS.length,
+      success: 0,
+      skipped: 0,
+      alreadyApplied: 0,
+      failed: 0,
     }
+
+    // Run migrations in order
+    for (const migration of MIGRATIONS) {
+      const result = await runMigration(client, migration)
+
+      if (result.success) {
+        results.success++
+        if (result.skipped) results.skipped++
+        if (result.alreadyApplied) results.alreadyApplied++
+      } else {
+        results.failed++
+      }
+    }
+
+    // Summary
+    console.log("\n================================")
+    console.log("📊 Setup Summary")
+    console.log("================================")
+    console.log(`Total migrations: ${results.total}`)
+    console.log(`✅ Successful: ${results.success}`)
+    console.log(`ℹ️  Already applied: ${results.alreadyApplied}`)
+    console.log(`⚠️  Skipped: ${results.skipped}`)
+    console.log(`❌ Failed: ${results.failed}`)
+
+    if (results.failed > 0) {
+      console.log("\n⚠️  Some migrations failed. Please review the errors above.")
+      process.exit(1)
+    }
+
+    console.log("\n✅ Compliance setup complete!")
+    console.log("\nNext steps:")
+    console.log("1. Test age verification: visit a protected route")
+    console.log("2. View compliance dashboard: /admin (Age Verification tab)")
+    console.log("3. Generate reports: pnpm compliance:monthly")
+    console.log("4. Multi-org reports: pnpm compliance:multi-org")
+  } finally {
+    await client.end()
   }
-
-  // Summary
-  console.log("\n================================")
-  console.log("📊 Setup Summary")
-  console.log("================================")
-  console.log(`Total migrations: ${results.total}`)
-  console.log(`✅ Successful: ${results.success}`)
-  console.log(`ℹ️  Already applied: ${results.alreadyApplied}`)
-  console.log(`⚠️  Skipped: ${results.skipped}`)
-  console.log(`❌ Failed: ${results.failed}`)
-
-  if (results.failed > 0) {
-    console.log("\n⚠️  Some migrations failed. Please review the errors above.")
-    process.exit(1)
-  }
-
-  console.log("\n✅ Compliance setup complete!")
-  console.log("\nNext steps:")
-  console.log("1. Test age verification: visit a protected route")
-  console.log("2. View compliance dashboard: /admin (Age Verification tab)")
-  console.log("3. Generate reports: pnpm compliance:monthly")
-  console.log("4. Multi-org reports: pnpm compliance:multi-org")
 }
 
 // Run setup

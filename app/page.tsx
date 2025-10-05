@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Leaf, Coins, Shield, Zap, ArrowRight, Star, Users, TrendingUp } from "lucide-react"
 import Link from "next/link"
+import { WalletConnectButton } from "@/components/wallet-connect-button"
 
 export default function HomePage() {
   return (
@@ -11,6 +12,10 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative overflow-hidden cannabis-leaf-pattern">
         <div className="container mx-auto px-4 py-16 lg:py-24">
+          <div className="flex justify-end mb-8">
+            <WalletConnectButton autoLogin={true} />
+          </div>
+
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
               <div className="space-y-6">

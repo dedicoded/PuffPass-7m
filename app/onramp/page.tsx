@@ -169,16 +169,13 @@ export default function OnrampPage() {
         if (!response.ok) {
           let errorMessage = "Cybrid payment failed"
           try {
-            const responseClone = response.clone()
-            const errorData = await responseClone.json()
+            const errorData = await response.json()
             errorMessage = errorData.error || errorMessage
           } catch (jsonError) {
             try {
               const errorText = await response.text()
-              errorMessage = `Server error: ${errorText.substring(0, 100)}...`
-              console.error("[v0] Non-JSON error response:", errorText)
+              errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`
             } catch (textError) {
-              console.error("[v0] Failed to read error response:", textError)
               errorMessage = `HTTP ${response.status}: ${response.statusText}`
             }
           }
@@ -191,6 +188,13 @@ export default function OnrampPage() {
         if (result.mode === "test") {
           console.warn("[v0] Payment processed in TEST MODE - configure Cybrid API keys for live transactions")
         }
+
+        const paymentResult = {
+          amountUsd: usdAmount,
+          puffAmount: puffAmount,
+        }
+        handlePaymentSuccess(paymentResult)
+        return
       } else if (selectedMethod === "sphere") {
         const response = await fetch("/api/payments/sphere", {
           method: "POST",
@@ -206,16 +210,13 @@ export default function OnrampPage() {
         if (!response.ok) {
           let errorMessage = "Sphere payment failed"
           try {
-            const responseClone = response.clone()
-            const errorData = await responseClone.json()
+            const errorData = await response.json()
             errorMessage = errorData.error || errorMessage
           } catch (jsonError) {
             try {
               const errorText = await response.text()
-              errorMessage = `Server error: ${errorText.substring(0, 100)}...`
-              console.error("[v0] Non-JSON error response:", errorText)
+              errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`
             } catch (textError) {
-              console.error("[v0] Failed to read error response:", textError)
               errorMessage = `HTTP ${response.status}: ${response.statusText}`
             }
           }
@@ -228,13 +229,14 @@ export default function OnrampPage() {
         if (result.mode === "test") {
           console.warn("[v0] Payment processed in TEST MODE - configure Sphere API keys for live transactions")
         }
-      }
 
-      const result = {
-        amountUsd: usdAmount,
-        puffAmount: puffAmount,
+        const paymentResult = {
+          amountUsd: usdAmount,
+          puffAmount: puffAmount,
+        }
+        handlePaymentSuccess(paymentResult)
+        return
       }
-      handlePaymentSuccess(result)
     } catch (error) {
       console.error("[v0] Payment processing error:", error)
       handlePaymentError(error instanceof Error ? error.message : "Payment processing failed")

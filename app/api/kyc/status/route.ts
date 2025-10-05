@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
+
+    const sql = getSql()
 
     // Get latest KYC verification for user
     const verification = await sql`

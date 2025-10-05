@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
     if (!items || !total_amount || total_amount <= 0) {
       return NextResponse.json({ error: "Invalid payment data" }, { status: 400 })
     }
+
+    const sql = getSql()
 
     // Create order
     const orderResult = await sql`

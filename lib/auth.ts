@@ -1,8 +1,11 @@
+"use server"
+
 import { SignJWT, jwtVerify } from "jose"
 import { cookies } from "next/headers"
 import type { NextResponse } from "next/server"
 import type { User } from "./db"
-import crypto from "crypto" // fixed crypto import to use Node.js built-in crypto module properly
+import crypto from "crypto"
+
 let JWTRotationService: any = null
 let jwtService: any = null
 
@@ -17,8 +20,26 @@ if (typeof window === "undefined") {
   }
 }
 
-const secretKey = process.env.STACK_SECRET_SERVER_KEY!
-const key = new TextEncoder().encode(secretKey)
+let _secretKey: string | null = null
+let _key: Uint8Array | null = null
+
+function getSecretKey(): string {
+  if (_secretKey === null) {
+    const key = process.env.STACK_SECRET_SERVER_KEY
+    if (!key) {
+      throw new Error("STACK_SECRET_SERVER_KEY environment variable is not configured")
+    }
+    _secretKey = key
+  }
+  return _secretKey
+}
+
+function getKey(): Uint8Array {
+  if (_key === null) {
+    _key = new TextEncoder().encode(getSecretKey())
+  }
+  return _key
+}
 
 export async function createToken(payload: {
   userId: string
@@ -47,10 +68,8 @@ export async function createToken(payload: {
     console.log("[v0] Falling back to legacy token creation")
   }
 
-  // Fallback to legacy token creation
-  if (!secretKey) {
-    throw new Error("STACK_SECRET_SERVER_KEY is not configured")
-  }
+  const secretKey = getSecretKey()
+  const key = getKey()
 
   const token = await new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
@@ -82,8 +101,8 @@ export async function verifyToken(token: string): Promise<{
     console.log("[v0] Rotation service verification failed, trying legacy method")
   }
 
-  // Use legacy verification method
   try {
+    const key = getKey()
     const { payload } = await jwtVerify(token, key)
     return {
       userId: payload.userId as string,
@@ -203,8 +222,8 @@ export async function getSession(): Promise<User | null> {
     console.log("[v0] Rotation service verification failed, using legacy method")
   }
 
-  // Use legacy verification
   try {
+    const key = getKey()
     const { payload } = await jwtVerify(session, key)
     return {
       id: payload.userId as string,
@@ -227,8 +246,8 @@ export async function destroySession() {
 
 export async function linkWalletToUser(userId: string, walletAddress: string): Promise<boolean> {
   try {
-    const { neon } = await import("@neondatabase/serverless")
-    const sql = neon(process.env.DATABASE_URL!)
+    const { getSql } = await import("@/lib/db")
+    const sql = getSql()
 
     await sql`
       UPDATE users 

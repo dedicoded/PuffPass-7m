@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/database"
+import { getSql } from "@/lib/database"
 
 export async function GET(request: NextRequest) {
   try {
+    const sql = getSql()
     const { searchParams } = new URL(request.url)
     const merchantId = searchParams.get("merchantId")
 
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const sql = getSql()
     const body = await request.json()
     const { name, description, points_cost, value_dollars, category, availability_count, merchant_id } = body
 

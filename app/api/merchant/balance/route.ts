@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[v0] Fetching balance for merchant: ${session.id}`)
+
+    const sql = getSql()
 
     // Fetch merchant balance with better error handling
     const result = await sql`

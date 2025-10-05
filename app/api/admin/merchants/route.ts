@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { getPendingMerchantApprovals } from "@/lib/db"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
+import { getPendingMerchantApprovals, getSql } from "@/lib/db"
 
 export async function GET() {
   try {
@@ -13,6 +10,8 @@ export async function GET() {
     }
 
     const pendingMerchants = await getPendingMerchantApprovals()
+
+    const sql = getSql()
 
     // Get user details for each merchant
     const merchantsWithDetails = []

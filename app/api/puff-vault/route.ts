@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     if (!session || session.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized - Admin access required" }, { status: 401 })
     }
+
+    const sql = getSql()
 
     // Get total vault balance by source
     const vaultSummary = await sql`
@@ -81,6 +83,8 @@ export async function POST(request: NextRequest) {
     const { action, amount, source, description } = await request.json()
 
     if (action === "add_reserve") {
+      const sql = getSql()
+
       // Add manual reserve funds
       await sql`
         INSERT INTO puff_vault (source, amount, description)

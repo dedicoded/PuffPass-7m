@@ -11,27 +11,43 @@ import type {
 
 export class CybridProvider implements PaymentProvider {
   name = "cybrid"
-  private apiUrl: string
-  private clientId: string
-  private clientSecret: string
-  private bankGuid: string
-  private orgGuid: string
+  private apiUrl: string | null = null
+  private clientId: string | null = null
+  private clientSecret: string | null = null
+  private bankGuid: string | null = null
+  private orgGuid: string | null = null
   private accessToken: string | null = null
   private tokenExpiry = 0
+  private initialized = false
 
   constructor() {
+    // Configuration is now lazy-loaded in ensureInitialized()
+  }
+
+  private ensureInitialized() {
+    if (this.initialized) return
+
     this.apiUrl = process.env.CYBRID_API_URL || "https://bank.sandbox.cybrid.app"
     this.clientId = process.env.CYBRID_CLIENT_ID || ""
     this.clientSecret = process.env.CYBRID_CLIENT_SECRET || ""
     this.bankGuid = process.env.CYBRID_BANK_GUID || ""
     this.orgGuid = process.env.CYBRID_ORG_GUID || ""
+    this.initialized = true
+
+    console.log("[v0] Cybrid provider initialized:", {
+      configured: this.isConfigured(),
+      apiUrl: this.apiUrl,
+    })
   }
 
   private isConfigured(): boolean {
+    this.ensureInitialized()
     return !!(this.clientId && this.clientSecret && this.bankGuid)
   }
 
   private async getAccessToken(): Promise<string> {
+    this.ensureInitialized()
+
     // Return cached token if still valid
     if (this.accessToken && Date.now() < this.tokenExpiry) {
       return this.accessToken
@@ -46,8 +62,8 @@ export class CybridProvider implements PaymentProvider {
       },
       body: new URLSearchParams({
         grant_type: "client_credentials",
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
+        client_id: this.clientId!,
+        client_secret: this.clientSecret!,
         scope: `organizations:${this.orgGuid} banks:${this.bankGuid}`,
       }),
     })
@@ -68,6 +84,8 @@ export class CybridProvider implements PaymentProvider {
   }
 
   async createCustomer(params: CustomerParams): Promise<CustomerResult> {
+    this.ensureInitialized()
+
     if (!this.isConfigured()) {
       throw new Error("Cybrid is not configured")
     }
@@ -157,6 +175,8 @@ export class CybridProvider implements PaymentProvider {
   }
 
   async processPayment(params: PaymentParams): Promise<PaymentResult> {
+    this.ensureInitialized()
+
     if (!this.isConfigured()) {
       console.warn("[v0] Cybrid: Not configured, returning test transaction")
       return {
@@ -255,6 +275,8 @@ export class CybridProvider implements PaymentProvider {
   }
 
   async getTransactionStatus(txnId: string): Promise<TransactionStatus> {
+    this.ensureInitialized()
+
     if (!this.isConfigured()) {
       throw new Error("Cybrid is not configured")
     }
@@ -284,6 +306,8 @@ export class CybridProvider implements PaymentProvider {
   }
 
   private async getOrCreateCustomer(userId: string, token: string): Promise<CustomerResult> {
+    this.ensureInitialized()
+
     // Check if customer exists
     const existingResponse = await fetch(
       `${this.apiUrl}/api/customers?external_customer_id=${userId}&bank_guid=${this.bankGuid}`,

@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
+import { getSql } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +18,8 @@ export async function GET(request: NextRequest) {
     const merchantId = searchParams.get("merchant_id")
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
+
+    const sql = getSql()
 
     // Build dynamic WHERE clause
     const conditions = ["status = 'active'"]

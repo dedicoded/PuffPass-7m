@@ -1,9 +1,7 @@
 // Unified Payment Processing API - Provider-agnostic endpoint
 
-import { neon } from "@neondatabase/serverless"
+import { getSql, getProviderId } from "@/lib/db"
 import { paymentRegistry } from "@/lib/payment-providers/registry"
-
-const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(req: Request) {
   try {
@@ -33,32 +31,50 @@ export async function POST(req: Request) {
     })
 
     if (!result.success) {
+      console.error("[v0] Payment provider returned error:", result.error)
       return Response.json({ success: false, error: result.error }, { status: 500 })
     }
 
-    const providerId = await getProviderId(provider)
+    try {
+      console.log("[v0] Getting provider ID for:", provider)
+      const providerId = await getProviderId(provider)
+      console.log("[v0] Provider ID obtained:", providerId)
 
-    // Record transaction in database
-    await sql`
-      INSERT INTO puff_transactions (
-        user_id, 
-        transaction_type, 
-        amount, 
-        description, 
-        status, 
-        provider_id,
-        created_at
-      )
-      VALUES (
-        ${userId}, 
-        'crypto_deposit', 
-        ${amount}, 
-        ${`${provider} payment: ${result.transactionId}`}, 
-        ${result.status},
-        ${providerId},
-        NOW()
-      )
-    `
+      const sql = getSql()
+      console.log("[v0] Recording transaction in database")
+
+      // Record transaction in database
+      await sql`
+        INSERT INTO puff_transactions (
+          user_id, 
+          transaction_type, 
+          amount, 
+          description, 
+          status, 
+          provider_id,
+          created_at
+        )
+        VALUES (
+          ${userId}, 
+          'crypto_deposit', 
+          ${amount}, 
+          ${`${provider} payment: ${result.transactionId}`}, 
+          ${result.status},
+          ${providerId},
+          NOW()
+        )
+      `
+
+      console.log("[v0] Transaction recorded successfully")
+    } catch (dbError: any) {
+      console.error("[v0] Database error (non-fatal):", dbError)
+      console.error("[v0] Error details:", {
+        message: dbError.message,
+        code: dbError.code,
+        detail: dbError.detail,
+      })
+      // Continue even if database recording fails
+    }
 
     console.log("[v0] Payment processed successfully", result.transactionId)
 
@@ -68,7 +84,18 @@ export async function POST(req: Request) {
     })
   } catch (error: any) {
     console.error("[v0] Payment processing error:", error)
-    return Response.json({ success: false, error: error.message || "Payment processing failed" }, { status: 500 })
+    console.error("[v0] Error details:", {
+      message: error?.message || "No message",
+      stack: error?.stack || "No stack",
+      name: error?.name || "No name",
+    })
+    return Response.json(
+      {
+        success: false,
+        error: error?.message || error?.toString() || "Payment processing failed",
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -81,12 +108,4 @@ export async function OPTIONS() {
       "Access-Control-Allow-Headers": "Content-Type",
     },
   })
-}
-
-async function getProviderId(provider: string): Promise<number> {
-  const result = await sql`SELECT id FROM payment_providers WHERE name = ${provider}`
-  if (result.length > 0) {
-    return result[0].id
-  }
-  throw new Error("Provider not found")
 }

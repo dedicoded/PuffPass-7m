@@ -1,13 +1,22 @@
+"use server"
+
 import { neon } from "@neondatabase/serverless"
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set")
-}
+let _sql: ReturnType<typeof neon> | null = null
 
-export const sql = neon(process.env.DATABASE_URL)
+export function getSql() {
+  if (_sql === null) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL is not set")
+    }
+    _sql = neon(process.env.DATABASE_URL)
+  }
+  return _sql
+}
 
 // Database query helpers for live data
 export async function getConsumerBalance(userId: string) {
+  const sql = getSql()
   const result = await sql`
     SELECT 
       COALESCE(SUM(points), 0) as total_points,
@@ -20,6 +29,7 @@ export async function getConsumerBalance(userId: string) {
 }
 
 export async function getConsumerRewards(userId: string) {
+  const sql = getSql()
   const result = await sql`
     SELECT 
       rc.*,
@@ -34,6 +44,7 @@ export async function getConsumerRewards(userId: string) {
 }
 
 export async function getConsumerActivity(userId: string, limit = 10) {
+  const sql = getSql()
   const result = await sql`
     SELECT 
       pp.points,
@@ -52,6 +63,7 @@ export async function getConsumerActivity(userId: string, limit = 10) {
 }
 
 export async function getMerchantContributions(merchantId: string) {
+  const sql = getSql()
   const result = await sql`
     SELECT 
       COALESCE(SUM(contribution_to_vault), 0) as total_vault_contribution,
@@ -64,6 +76,7 @@ export async function getMerchantContributions(merchantId: string) {
 }
 
 export async function getMerchantLeaderboard() {
+  const sql = getSql()
   const result = await sql`
     SELECT 
       mp.business_name,
@@ -84,6 +97,7 @@ export async function getMerchantLeaderboard() {
 }
 
 export async function getVaultSnapshot() {
+  const sql = getSql()
   const result = await sql`
     SELECT 
       total_balance,
@@ -100,6 +114,7 @@ export async function getVaultSnapshot() {
 }
 
 export async function getYieldForecast() {
+  const sql = getSql()
   const result = await sql`
     SELECT 
       fa.allocation_type,
