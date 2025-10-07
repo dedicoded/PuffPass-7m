@@ -1,6 +1,7 @@
 "use server"
 
 import { neon } from "@neondatabase/serverless"
+import { ensureTable } from "./db-migrations"
 
 let _sql: ReturnType<typeof neon> | null = null
 
@@ -122,6 +123,8 @@ export async function createUser(userData: {
   dcResidency?: boolean
   referralCode?: string
 }): Promise<User> {
+  await ensureTable("users")
+
   const {
     email,
     name = "",
@@ -195,6 +198,8 @@ export async function createUser(userData: {
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
+  await ensureTable("users")
+
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] getUserByEmail called with invalid email:", email)
     return null
@@ -242,6 +247,8 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 export async function getUserById(id: string): Promise<User | null> {
+  await ensureTable("users")
+
   if (!id || typeof id !== "string" || id.trim() === "") {
     console.log("[v0] getUserById called with invalid id:", id)
     return null
@@ -280,6 +287,8 @@ export async function getUserById(id: string): Promise<User | null> {
 }
 
 export async function verifyPassword(email: string, password: string): Promise<User | null> {
+  await ensureTable("users")
+
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] verifyPassword called with invalid email:", email)
     return null
@@ -342,6 +351,8 @@ export async function getUserByEmailAndRole(
   email: string,
   role: "customer" | "merchant" | "admin",
 ): Promise<(User & { password_hash: string }) | null> {
+  await ensureTable("users")
+
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] getUserByEmailAndRole called with invalid email:", email)
     return null
@@ -561,6 +572,8 @@ export async function getUserPuffPoints(userId: string): Promise<number> {
 }
 
 export async function getUserByWallet(walletAddress: string): Promise<User | null> {
+  await ensureTable("users")
+
   if (!walletAddress || typeof walletAddress !== "string" || walletAddress.trim() === "") {
     console.log("[v0] getUserByWallet called with invalid wallet address:", walletAddress)
     return null
@@ -608,6 +621,8 @@ export async function getUserByWallet(walletAddress: string): Promise<User | nul
 }
 
 export async function getProviderId(name: string) {
+  await ensureTable("providers")
+
   const sqlClient = getSql()
 
   try {
@@ -623,44 +638,12 @@ export async function getProviderId(name: string) {
     const insertResult = await sqlClient`
       INSERT INTO providers (name, display_name)
       VALUES (${name}, ${name.charAt(0).toUpperCase() + name.slice(1)})
-      ON CONFLICT (name) DO UPDATE SET updated_at = NOW()
+      ON CONFLICT (name) DO UPDATE SET display_name = ${name.charAt(0).toUpperCase() + name.slice(1)}
       RETURNING id
     `
 
     return insertResult[0]?.id ?? null
   } catch (error: any) {
-    if (error?.message?.includes('relation "providers" does not exist')) {
-      console.log("[v0] providers table missing, creating it now...")
-
-      try {
-        await sqlClient`
-          CREATE TABLE IF NOT EXISTS providers (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            name VARCHAR(255) UNIQUE NOT NULL,
-            display_name VARCHAR(255),
-            icon_url TEXT,
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-          )
-        `
-
-        console.log("[v0] providers table created successfully")
-
-        const insertResult = await sqlClient`
-          INSERT INTO providers (name, display_name)
-          VALUES (${name}, ${name.charAt(0).toUpperCase() + name.slice(1)})
-          RETURNING id
-        `
-
-        return insertResult[0]?.id ?? null
-      } catch (createError) {
-        console.error("[v0] Failed to create providers table:", createError)
-        throw new Error(
-          `Failed to create providers table: ${createError instanceof Error ? createError.message : "Unknown error"}`,
-        )
-      }
-    }
-
     console.error("[v0] Error in getProviderId:", error)
     throw error
   }

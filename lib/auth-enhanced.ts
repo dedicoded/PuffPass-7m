@@ -28,11 +28,35 @@ export interface PasskeyCredential {
   createdAt: Date
 }
 
-// Admin trustee configuration - only this wallet can access admin functions
-const ADMIN_TRUSTEE_WALLET = process.env.NEXT_PUBLIC_ADMIN_TRUSTEE_WALLET?.toLowerCase()
+let _adminTrusteeWallet: string | null | undefined = undefined
 
-const secretKey = process.env.STACK_SECRET_SERVER_KEY!
-const key = new TextEncoder().encode(secretKey)
+function getAdminTrusteeWallet(): string | null {
+  if (_adminTrusteeWallet === undefined) {
+    _adminTrusteeWallet = process.env.NEXT_PUBLIC_ADMIN_TRUSTEE_WALLET?.toLowerCase() || null
+  }
+  return _adminTrusteeWallet
+}
+
+let _secretKey: string | null = null
+let _key: Uint8Array | null = null
+
+function getSecretKey(): string {
+  if (_secretKey === null) {
+    const key = process.env.STACK_SECRET_SERVER_KEY
+    if (!key) {
+      throw new Error("STACK_SECRET_SERVER_KEY environment variable is not configured")
+    }
+    _secretKey = key
+  }
+  return _secretKey
+}
+
+function getKey(): Uint8Array {
+  if (_key === null) {
+    _key = new TextEncoder().encode(getSecretKey())
+  }
+  return _key
+}
 
 // Enhanced session creation with KYC level and device tracking
 export async function createEnhancedSession(
@@ -59,6 +83,7 @@ export async function createEnhancedSession(
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days
     }
 
+    const key = getKey()
     const session = await new SignJWT(payload)
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
@@ -122,7 +147,9 @@ export async function createEnhancedSession(
 
 // Verify admin trustee wallet address
 export async function verifyAdminTrusteeWallet(walletAddress?: string): Promise<boolean> {
-  if (!ADMIN_TRUSTEE_WALLET) {
+  const adminTrusteeWallet = getAdminTrusteeWallet()
+
+  if (!adminTrusteeWallet) {
     console.warn("[v0] Admin trustee wallet not configured")
     return false
   }
@@ -131,7 +158,7 @@ export async function verifyAdminTrusteeWallet(walletAddress?: string): Promise<
     return false
   }
 
-  return walletAddress.toLowerCase() === ADMIN_TRUSTEE_WALLET
+  return walletAddress.toLowerCase() === adminTrusteeWallet
 }
 
 // Enhanced session verification with KYC checks
@@ -142,6 +169,7 @@ export async function getEnhancedSession(): Promise<AuthSession | null> {
   if (!session) return null
 
   try {
+    const key = getKey()
     const { payload } = await jwtVerify(session, key)
 
     const sql = getSql()

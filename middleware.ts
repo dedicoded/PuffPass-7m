@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { logAgeVerification } from "@/lib/age-verification-logger"
 
 const AGE_VERIFICATION_ALLOWLIST = [
   "/age-verification",
@@ -36,15 +35,6 @@ export async function middleware(request: NextRequest) {
 
   if (isAllowlisted) {
     console.log("[AGE-VERIFICATION] Skipping for allowlisted route:", pathname)
-    await logAgeVerification({
-      userId,
-      ip,
-      userAgent,
-      route: pathname,
-      action: "skip",
-      reason: "allowlist",
-      verified: true,
-    })
 
     // Admin route protection still applies
     if (pathname.startsWith("/admin")) {
@@ -62,29 +52,10 @@ export async function middleware(request: NextRequest) {
 
   if (!ageVerified) {
     console.log("[AGE-VERIFICATION] Blocked:", pathname)
-    await logAgeVerification({
-      userId,
-      ip,
-      userAgent,
-      route: pathname,
-      action: "fail",
-      reason: "no age-verified cookie",
-      verified: false,
-      auditEvent: { method: "cookie", age_verified: false },
-    })
     return NextResponse.redirect(new URL("/age-verification", request.url))
   }
 
   console.log("[AGE-VERIFICATION] Passed:", pathname)
-  await logAgeVerification({
-    userId,
-    ip,
-    userAgent,
-    route: pathname,
-    action: "pass",
-    verified: true,
-    auditEvent: { method: "cookie", age_verified: true },
-  })
 
   // Admin route protection
   if (pathname.startsWith("/admin")) {
