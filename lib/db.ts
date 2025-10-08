@@ -1,5 +1,3 @@
-"use server"
-
 // This file now just re-exports from the server-only module
 export * from "./db.server"
 

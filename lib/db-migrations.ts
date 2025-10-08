@@ -1,6 +1,6 @@
 "use server"
 
-import { getSql } from "./db"
+import type { NeonQueryFunction } from "@neondatabase/serverless"
 
 // Table creation SQL statements
 const MIGRATIONS = {
@@ -15,6 +15,9 @@ const MIGRATIONS = {
       dc_residency BOOLEAN DEFAULT false,
       patient_certification BOOLEAN DEFAULT false,
       referral_code TEXT,
+      auth_method TEXT DEFAULT 'password',
+      embedded_wallet TEXT,
+      kyc_status TEXT DEFAULT 'pending',
       created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
     );
@@ -109,27 +112,19 @@ const migratedTables = new Set<string>()
  * Ensures a table exists by running its migration if needed.
  * Safe to call multiple times - uses CREATE TABLE IF NOT EXISTS.
  */
-export async function ensureTable(tableName: keyof typeof MIGRATIONS): Promise<void> {
-  // Skip if already checked in this session
-  if (migratedTables.has(tableName)) {
-    return
-  }
-
-  const sql = await getSql()
-  const migration = MIGRATIONS[tableName]
-
-  if (!migration) {
-    console.error(`[v0] No migration found for table: ${tableName}`)
-    return
+export async function ensureTable(
+  sql: NeonQueryFunction<false, false>,
+  tableName: keyof typeof MIGRATIONS,
+): Promise<void> {
+  const migrationSql = MIGRATIONS[tableName]
+  if (!migrationSql) {
+    throw new Error(`No migration found for table: ${tableName}`)
   }
 
   try {
-    console.log(`[v0] Ensuring table exists: ${tableName}`)
-    await sql(migration)
-    migratedTables.add(tableName)
-    console.log(`[v0] Table ready: ${tableName}`)
+    await sql(migrationSql)
   } catch (error) {
-    console.error(`[v0] Migration error for ${tableName}:`, error)
+    console.error(`[v0] Failed to ensure table ${tableName}:`, error)
     throw error
   }
 }
@@ -138,14 +133,13 @@ export async function ensureTable(tableName: keyof typeof MIGRATIONS): Promise<v
  * Ensures all critical tables exist.
  * Call this on app startup or before critical operations.
  */
-export async function ensureCriticalTables(): Promise<void> {
-  await Promise.all([
-    ensureTable("users"),
-    ensureTable("providers"),
-    ensureTable("user_profiles"),
-    ensureTable("merchant_profiles"),
-    ensureTable("puff_transactions"),
-  ])
+export async function ensureCriticalTables(sql: NeonQueryFunction<false, false>): Promise<void> {
+  const tables = ["users", "providers", "user_profiles", "merchant_profiles", "puff_transactions"] as Array<
+    keyof typeof MIGRATIONS
+  >
+  for (const table of tables) {
+    await ensureTable(sql, table)
+  }
 }
 
 /**

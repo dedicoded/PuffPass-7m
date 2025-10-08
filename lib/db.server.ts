@@ -1,7 +1,4 @@
-"use server"
-
 import { neon } from "@neondatabase/serverless"
-import { ensureTable } from "./db-migrations"
 
 let _sql: ReturnType<typeof neon> | null = null
 
@@ -111,32 +108,33 @@ export interface ApprovalWorkflow {
   updated_at: string
 }
 
-export async function createUser(userData: {
+export async function createUser({
+  name,
+  email,
+  password,
+  role = "customer",
+  walletAddress,
+  patientCertification,
+  dcResidency,
+  referralCode,
+  authMethod = "password",
+  embeddedWallet,
+}: {
+  name: string
   email: string
-  name?: string
-  role: "customer" | "merchant" | "admin"
-  hashedPassword?: string
+  password: string
+  role?: "customer" | "merchant" | "admin"
   walletAddress?: string
-  authMethod?: "password" | "wallet" | "passkey"
-  embeddedWallet?: string
   patientCertification?: boolean
   dcResidency?: boolean
   referralCode?: string
+  authMethod?: "password" | "wallet" | "passkey"
+  embeddedWallet?: string
 }): Promise<User> {
-  await ensureTable("users")
+  const sql = getSql()
 
-  const {
-    email,
-    name = "",
-    role,
-    hashedPassword,
-    walletAddress,
-    authMethod = "password",
-    embeddedWallet,
-    patientCertification = false,
-    dcResidency = false,
-    referralCode,
-  } = userData
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "users")
 
   if (!email || email.trim() === "") {
     throw new Error("Email is required and cannot be empty")
@@ -146,20 +144,19 @@ export async function createUser(userData: {
     throw new Error("Valid role is required")
   }
 
-  if (authMethod === "password" && (!hashedPassword || hashedPassword.trim() === "")) {
+  if (authMethod === "password" && (!password || password.trim() === "")) {
     throw new Error("Password is required for password authentication")
   }
 
   try {
     console.log("[v0] Creating user with auth method:", authMethod)
 
-    const sqlClient = getSql()
-    const result = await sqlClient`
+    const result = await sql`
       INSERT INTO users (name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code, auth_method, embedded_wallet)
       VALUES (
         ${name.trim()}, 
         ${email.trim().toLowerCase()}, 
-        ${hashedPassword || null},
+        ${password || null},
         ${role},
         ${walletAddress || null},
         ${patientCertification},
@@ -198,7 +195,10 @@ export async function createUser(userData: {
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  await ensureTable("users")
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "users")
 
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] getUserByEmail called with invalid email:", email)
@@ -209,8 +209,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     const normalizedEmail = email.trim().toLowerCase()
     console.log("[v0] Looking up user by email:", normalizedEmail)
 
-    const sqlClient = getSql()
-    const result = await sqlClient`
+    const result = await sql`
       SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE email = ${normalizedEmail}
@@ -247,7 +246,10 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  await ensureTable("users")
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "users")
 
   if (!id || typeof id !== "string" || id.trim() === "") {
     console.log("[v0] getUserById called with invalid id:", id)
@@ -255,8 +257,7 @@ export async function getUserById(id: string): Promise<User | null> {
   }
 
   try {
-    const sqlClient = getSql()
-    const result = await sqlClient`
+    const result = await sql`
       SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE id = ${id.trim()}
@@ -287,7 +288,10 @@ export async function getUserById(id: string): Promise<User | null> {
 }
 
 export async function verifyPassword(email: string, password: string): Promise<User | null> {
-  await ensureTable("users")
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "users")
 
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] verifyPassword called with invalid email:", email)
@@ -303,8 +307,7 @@ export async function verifyPassword(email: string, password: string): Promise<U
     console.log("[v0] Starting password verification for:", email.trim().toLowerCase())
     const normalizedEmail = email.trim().toLowerCase()
 
-    const sqlClient = getSql()
-    const result = await sqlClient`
+    const result = await sql`
       SELECT id, name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE email = ${normalizedEmail}
@@ -351,7 +354,10 @@ export async function getUserByEmailAndRole(
   email: string,
   role: "customer" | "merchant" | "admin",
 ): Promise<(User & { password_hash: string }) | null> {
-  await ensureTable("users")
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "users")
 
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] getUserByEmailAndRole called with invalid email:", email)
@@ -367,7 +373,7 @@ export async function getUserByEmailAndRole(
     const normalizedEmail = email.trim().toLowerCase()
     console.log("[v0] Looking up user by email and role:", normalizedEmail, role)
 
-    const result = await getSql()`
+    const result = await sql`
       SELECT id, name, email, password, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE email = ${normalizedEmail} AND role = ${role}
@@ -405,7 +411,12 @@ export async function getUserByEmailAndRole(
 }
 
 export async function createProduct(productData: Omit<Product, "id" | "created_at" | "updated_at">) {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "products")
+
+  const result = await sql`
     INSERT INTO products (name, description, category, strain_type, thc_percentage, cbd_percentage, price_per_unit, unit_type, merchant_id, stock_quantity, lab_tested, status)
     VALUES (${productData.name}, ${productData.description}, ${productData.category}, ${productData.strain_type}, ${productData.thc_percentage}, ${productData.cbd_percentage}, ${productData.price_per_unit}, ${productData.unit_type}, ${productData.merchant_id}, ${productData.stock_quantity}, ${productData.lab_tested}, ${productData.status})
     RETURNING *
@@ -414,7 +425,12 @@ export async function createProduct(productData: Omit<Product, "id" | "created_a
 }
 
 export async function getProductsByMerchant(merchantId: string): Promise<Product[]> {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "products")
+
+  const result = await sql`
     SELECT * FROM products 
     WHERE merchant_id = ${merchantId} AND status != 'inactive'
     ORDER BY created_at DESC
@@ -423,14 +439,24 @@ export async function getProductsByMerchant(merchantId: string): Promise<Product
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "products")
+
+  const result = await sql`
     SELECT * FROM products WHERE id = ${id}
   `
   return result.length > 0 ? (result[0] as Product) : null
 }
 
 export async function updateProductStock(productId: string, newStock: number) {
-  await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "products")
+
+  await sql`
     UPDATE products 
     SET stock_quantity = ${newStock}, updated_at = NOW()
     WHERE id = ${productId}
@@ -438,7 +464,12 @@ export async function updateProductStock(productId: string, newStock: number) {
 }
 
 export async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">) {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "orders")
+
+  const result = await sql`
     INSERT INTO orders (customer_id, merchant_id, total_amount, tax_amount, status, payment_method, payment_status, delivery_method, delivery_address, notes)
     VALUES (${orderData.customer_id}, ${orderData.merchant_id}, ${orderData.total_amount}, ${orderData.tax_amount}, ${orderData.status}, ${orderData.payment_method}, ${orderData.payment_status}, ${orderData.delivery_method}, ${JSON.stringify(orderData.delivery_address)}, ${orderData.notes})
     RETURNING *
@@ -447,7 +478,12 @@ export async function createOrder(orderData: Omit<Order, "id" | "created_at" | "
 }
 
 export async function createOrderItem(orderItem: Omit<OrderItem, "id" | "created_at">) {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "order_items")
+
+  const result = await sql`
     INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price)
     VALUES (${orderItem.order_id}, ${orderItem.product_id}, ${orderItem.quantity}, ${orderItem.unit_price}, ${orderItem.total_price})
     RETURNING *
@@ -456,7 +492,12 @@ export async function createOrderItem(orderItem: Omit<OrderItem, "id" | "created
 }
 
 export async function getOrdersByCustomer(customerId: string): Promise<Order[]> {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "orders")
+
+  const result = await sql`
     SELECT * FROM orders 
     WHERE customer_id = ${customerId}
     ORDER BY created_at DESC
@@ -465,7 +506,12 @@ export async function getOrdersByCustomer(customerId: string): Promise<Order[]> 
 }
 
 export async function getOrdersByMerchant(merchantId: string): Promise<Order[]> {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "orders")
+
+  const result = await sql`
     SELECT * FROM orders 
     WHERE merchant_id = ${merchantId}
     ORDER BY created_at DESC
@@ -474,7 +520,12 @@ export async function getOrdersByMerchant(merchantId: string): Promise<Order[]> 
 }
 
 export async function updateOrderStatus(orderId: string, status: Order["status"]) {
-  await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "orders")
+
+  await sql`
     UPDATE orders 
     SET status = ${status}, updated_at = NOW()
     WHERE id = ${orderId}
@@ -482,7 +533,12 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
 }
 
 export async function createMerchantProfile(profileData: Omit<MerchantProfile, "id" | "created_at" | "updated_at">) {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "merchant_profiles")
+
+  const result = await sql`
     INSERT INTO merchant_profiles (user_id, business_name, license_number, license_type, business_address, phone, email, metrc_facility_id, approval_status)
     VALUES (${profileData.user_id}, ${profileData.business_name}, ${profileData.license_number}, ${profileData.license_type}, ${JSON.stringify(profileData.business_address)}, ${profileData.phone}, ${profileData.email}, ${profileData.metrc_facility_id}, ${profileData.approval_status})
     RETURNING *
@@ -491,14 +547,24 @@ export async function createMerchantProfile(profileData: Omit<MerchantProfile, "
 }
 
 export async function getMerchantProfile(userId: string): Promise<MerchantProfile | null> {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "merchant_profiles")
+
+  const result = await sql`
     SELECT * FROM merchant_profiles WHERE user_id = ${userId}
   `
   return result.length > 0 ? (result[0] as MerchantProfile) : null
 }
 
 export async function getPendingMerchantApprovals(): Promise<MerchantProfile[]> {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "merchant_profiles")
+
+  const result = await sql`
     SELECT * FROM merchant_profiles 
     WHERE approval_status = 'pending'
     ORDER BY created_at ASC
@@ -507,7 +573,12 @@ export async function getPendingMerchantApprovals(): Promise<MerchantProfile[]> 
 }
 
 export async function approveMerchant(profileId: string, approvedBy: string) {
-  await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "merchant_profiles")
+
+  await sql`
     UPDATE merchant_profiles 
     SET approval_status = 'approved', approved_by = ${approvedBy}, approved_at = NOW(), updated_at = NOW()
     WHERE id = ${profileId}
@@ -515,7 +586,12 @@ export async function approveMerchant(profileId: string, approvedBy: string) {
 }
 
 export async function createApprovalWorkflow(workflowData: Omit<ApprovalWorkflow, "id" | "created_at" | "updated_at">) {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "approval_workflows")
+
+  const result = await sql`
     INSERT INTO approval_workflows (workflow_type, entity_id, entity_type, status, requested_by, assigned_to, notes)
     VALUES (${workflowData.workflow_type}, ${workflowData.entity_id}, ${workflowData.entity_type}, ${workflowData.status}, ${workflowData.requested_by}, ${workflowData.assigned_to}, ${workflowData.notes})
     RETURNING *
@@ -524,9 +600,14 @@ export async function createApprovalWorkflow(workflowData: Omit<ApprovalWorkflow
 }
 
 export async function getPendingApprovals(assignedTo?: string): Promise<ApprovalWorkflow[]> {
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "approval_workflows")
+
   const query = assignedTo
-    ? getSql()`SELECT * FROM approval_workflows WHERE status = 'pending' AND assigned_to = ${assignedTo} ORDER BY created_at ASC`
-    : getSql()`SELECT * FROM approval_workflows WHERE status = 'pending' ORDER BY created_at ASC`
+    ? sql`SELECT * FROM approval_workflows WHERE status = 'pending' AND assigned_to = ${assignedTo} ORDER BY created_at ASC`
+    : sql`SELECT * FROM approval_workflows WHERE status = 'pending' ORDER BY created_at ASC`
 
   const result = await query
   return result as ApprovalWorkflow[]
@@ -538,7 +619,12 @@ export async function updateApprovalStatus(
   approvedBy: string,
   rejectionReason?: string,
 ) {
-  await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "approval_workflows")
+
+  await sql`
     UPDATE approval_workflows 
     SET status = ${status}, approved_by = ${approvedBy}, rejection_reason = ${rejectionReason}, updated_at = NOW()
     WHERE id = ${workflowId}
@@ -546,12 +632,17 @@ export async function updateApprovalStatus(
 }
 
 export async function addPuffPoints(userId: string, points: number, transactionDescription: string, orderId?: string) {
-  await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "puff_points")
+
+  await sql`
     INSERT INTO puff_points (user_id, points_earned, points_balance, transaction_type, transaction_description, order_id)
     VALUES (${userId}, ${points}, ${points}, 'earned', ${transactionDescription}, ${orderId})
   `
 
-  await getSql()`
+  await sql`
     UPDATE puff_points 
     SET points_balance = (
       SELECT COALESCE(SUM(points_earned) - SUM(points_spent), 0) 
@@ -563,7 +654,12 @@ export async function addPuffPoints(userId: string, points: number, transactionD
 }
 
 export async function getUserPuffPoints(userId: string): Promise<number> {
-  const result = await getSql()`
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "puff_points")
+
+  const result = await sql`
     SELECT COALESCE(SUM(points_earned) - SUM(points_spent), 0) as balance
     FROM puff_points 
     WHERE user_id = ${userId}
@@ -572,7 +668,10 @@ export async function getUserPuffPoints(userId: string): Promise<number> {
 }
 
 export async function getUserByWallet(walletAddress: string): Promise<User | null> {
-  await ensureTable("users")
+  const sql = getSql()
+
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "users")
 
   if (!walletAddress || typeof walletAddress !== "string" || walletAddress.trim() === "") {
     console.log("[v0] getUserByWallet called with invalid wallet address:", walletAddress)
@@ -583,8 +682,7 @@ export async function getUserByWallet(walletAddress: string): Promise<User | nul
     const normalizedAddress = walletAddress.trim().toLowerCase()
     console.log("[v0] Looking up user by wallet address:", normalizedAddress)
 
-    const sqlClient = getSql()
-    const result = await sqlClient`
+    const result = await sql`
       SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, referral_code, created_at, updated_at, auth_method, embedded_wallet
       FROM users 
       WHERE LOWER(wallet_address) = ${normalizedAddress}
@@ -621,12 +719,13 @@ export async function getUserByWallet(walletAddress: string): Promise<User | nul
 }
 
 export async function getProviderId(name: string) {
-  await ensureTable("providers")
+  const sql = getSql()
 
-  const sqlClient = getSql()
+  const { ensureTable } = await import("./db-migrations")
+  await ensureTable(sql, "providers")
 
   try {
-    const result = await sqlClient`
+    const result = await sql`
       SELECT id FROM providers WHERE name = ${name} LIMIT 1
     `
 
@@ -635,7 +734,7 @@ export async function getProviderId(name: string) {
     }
 
     console.log(`[v0] Provider '${name}' not found, creating it...`)
-    const insertResult = await sqlClient`
+    const insertResult = await sql`
       INSERT INTO providers (name, display_name)
       VALUES (${name}, ${name.charAt(0).toUpperCase() + name.slice(1)})
       ON CONFLICT (name) DO UPDATE SET display_name = ${name.charAt(0).toUpperCase() + name.slice(1)}
