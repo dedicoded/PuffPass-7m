@@ -3,7 +3,7 @@ import { getSql } from "@/lib/database"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const sql = getSql()
+    const sql = await getSql()
     const { id } = params
     const body = await request.json()
     const { is_active } = body

@@ -24,6 +24,7 @@ export default function KYCPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [kycStatus, setKycStatus] = useState<KYCStatus | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -42,12 +43,34 @@ export default function KYCPage() {
   })
 
   useEffect(() => {
-    fetchKYCStatus()
+    fetchUserSession()
   }, [])
 
-  const fetchKYCStatus = async () => {
+  useEffect(() => {
+    if (userId) {
+      fetchKYCStatus()
+    }
+  }, [userId])
+
+  const fetchUserSession = async () => {
     try {
-      const response = await fetch("/api/kyc/status?userId=current-user-id") // TODO: Get from auth
+      const response = await fetch("/api/auth/session")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.user?.id) {
+          setUserId(data.user.id)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch user session:", error)
+    }
+  }
+
+  const fetchKYCStatus = async () => {
+    if (!userId) return
+
+    try {
+      const response = await fetch(`/api/kyc/status?userId=${userId}`)
       const data = await response.json()
       setKycStatus(data)
     } catch (error) {
@@ -62,11 +85,16 @@ export default function KYCPage() {
   const handleSubmitPersonalInfo = async () => {
     setIsLoading(true)
     try {
+      if (!userId) {
+        alert("Please log in to continue")
+        return
+      }
+
       const response = await fetch("/api/kyc/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: "current-user-id", // TODO: Get from auth
+          userId,
           ...formData,
         }),
       })

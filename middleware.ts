@@ -13,18 +13,17 @@ const AGE_VERIFICATION_ALLOWLIST = [
 ]
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next()
   const pathname = request.nextUrl.pathname
 
   console.log("[v0] Middleware processing:", pathname)
 
-  // Security headers
+  // Create response
+  const response = NextResponse.next()
+
   response.headers.set("X-Frame-Options", "DENY")
   response.headers.set("X-Content-Type-Options", "nosniff")
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
   response.headers.set("X-XSS-Protection", "1; mode=block")
-
-  // Cannabis platform specific headers
   response.headers.set("X-Cannabis-Platform", "MyCora")
 
   const ip = request.ip ?? request.headers.get("x-forwarded-for") ?? "0.0.0.0"
@@ -36,7 +35,6 @@ export async function middleware(request: NextRequest) {
   if (isAllowlisted) {
     console.log("[AGE-VERIFICATION] Skipping for allowlisted route:", pathname)
 
-    // Admin route protection still applies
     if (pathname.startsWith("/admin")) {
       const adminToken = request.cookies.get("admin-session") || request.cookies.get("admin-trustee-token")
       if (!adminToken) {
@@ -57,7 +55,6 @@ export async function middleware(request: NextRequest) {
 
   console.log("[AGE-VERIFICATION] Passed:", pathname)
 
-  // Admin route protection
   if (pathname.startsWith("/admin")) {
     const adminToken = request.cookies.get("admin-session") || request.cookies.get("admin-trustee-token")
     if (!adminToken) {
@@ -73,11 +70,11 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
      */
-    "/((?!api/|_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }

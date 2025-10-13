@@ -18,7 +18,7 @@ export const BLOCKCHAIN_CONFIG = {
 
   // RPC URLs
   rpcUrls: {
-    sepolia: process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/demo",
+    sepolia: process.env.SEPOLIA_RPC_URL || process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/demo",
     mainnet: process.env.MAINNET_URL || "",
     polygon: process.env.POLYGON_URL || "",
   },
@@ -27,6 +27,7 @@ export const BLOCKCHAIN_CONFIG = {
   contracts: {
     compliance: process.env.NEXT_PUBLIC_COMPLIANCE_CONTRACT_ADDRESS || "",
     merchantProcessor: process.env.NEXT_PUBLIC_MERCHANT_PROCESSOR_ADDRESS || "",
+    mcc: process.env.NEXT_PUBLIC_MCC_CONTRACT_ADDRESS || "",
     security: process.env.NEXT_PUBLIC_SECURITY_CONTRACT_ADDRESS || "",
     puffpass: process.env.NEXT_PUBLIC_PUFFPASS_CONTRACT_ADDRESS || "",
     utility: process.env.NEXT_PUBLIC_UTILITY_CONTRACT_ADDRESS || "",

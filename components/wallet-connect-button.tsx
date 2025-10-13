@@ -88,10 +88,11 @@ function WalletConnectButtonInner({
   onDisconnect?: () => void
   autoLogin?: boolean
 }) {
-  const { useAccount, useConnect, useDisconnect } = hooks
+  const { useAccount, useConnect, useDisconnect, useSignMessage } = hooks
   const { address, isConnected, connector } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
+  const { signMessageAsync } = useSignMessage()
   const router = useRouter()
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
@@ -106,16 +107,23 @@ function WalletConnectButtonInner({
       setIsAuthenticating(true)
       console.log("[v0] Starting wallet authentication for:", walletAddress)
 
-      if (!window.ethereum) {
-        throw new Error("MetaMask or compatible wallet not detected")
-      }
-
-      // Sign message to verify wallet ownership
       const message = `Puff Pass Login - ${Date.now()}`
-      const signature = await window.ethereum.request({
-        method: "personal_sign",
-        params: [message, walletAddress],
-      })
+
+      let signature: string
+      try {
+        signature = await signMessageAsync({ message })
+        console.log("[v0] Message signed successfully")
+      } catch (signError: any) {
+        console.error("[v0] Signature error:", signError)
+
+        if (signError.message?.includes("User rejected") || signError.message?.includes("denied")) {
+          throw new Error("Signature request was denied. Please approve the signature in your wallet to continue.")
+        } else if (signError.message?.includes("not authorized")) {
+          throw new Error("Wallet not authorized. Please ensure your wallet is unlocked and connected.")
+        } else {
+          throw new Error(`Failed to sign message: ${signError.message || "Unknown error"}`)
+        }
+      }
 
       console.log("[v0] Message signed, calling login API")
 
@@ -127,7 +135,7 @@ function WalletConnectButtonInner({
           walletAddress,
           signature,
           message,
-          userType: "consumer", // Default to consumer, can be changed based on context
+          userType: "consumer",
         }),
       })
 
@@ -137,7 +145,6 @@ function WalletConnectButtonInner({
       if (contentType && contentType.includes("application/json")) {
         data = await response.json()
       } else {
-        // If response is not JSON, try to get text and create error object
         const text = await response.text()
         console.error("[v0] Non-JSON error response:", text)
         data = {
@@ -150,7 +157,6 @@ function WalletConnectButtonInner({
 
       if (data.success) {
         toast.success("Successfully logged in!")
-        // Redirect based on user role
         if (data.user?.role === "admin") {
           router.push("/admin")
         } else if (data.user?.role === "merchant") {

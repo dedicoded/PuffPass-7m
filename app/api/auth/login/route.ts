@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getSql } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -39,6 +38,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 })
     }
 
+    console.log("[v0] Dynamically importing database connection...")
+    const { getSql } = await import("@/lib/db")
     console.log("[v0] Getting database connection...")
     const sql = await getSql()
     console.log("[v0] Database connection established")
@@ -55,7 +56,13 @@ export async function POST(request: NextRequest) {
     let user = users[0]
 
     if (!user) {
-      console.log("[v0] Creating new user...")
+      console.log("[v0] Checking if wallet is admin trustee...")
+      const { verifyAdminTrusteeWallet } = await import("@/lib/auth-enhanced")
+      const isAdminTrustee = await verifyAdminTrusteeWallet(walletAddress)
+      const userRole = isAdminTrustee ? "admin" : "customer"
+      console.log("[v0] Wallet role determined:", userRole)
+
+      console.log("[v0] Creating new user with role:", userRole)
       const newUsers = await sql`
         INSERT INTO users (
           email,
@@ -66,14 +73,14 @@ export async function POST(request: NextRequest) {
         ) VALUES (
           ${`${walletAddress}@wallet.puffpass.app`},
           ${walletAddress},
-          'customer',
+          ${userRole},
           'wallet',
           NOW()
         )
         RETURNING id, email, name, role, wallet_address, embedded_wallet, kyc_status
       `
       user = newUsers[0]
-      console.log("[v0] New user created with ID:", user.id)
+      console.log("[v0] New user created with ID:", user.id, "and role:", user.role)
     }
 
     console.log("[v0] Logging successful authentication...")
@@ -119,8 +126,12 @@ export async function POST(request: NextRequest) {
     let redirectTo = "/consumer"
     if (user.role === "admin") {
       redirectTo = "/admin"
+      console.log("[v0] Admin user detected, redirecting to admin dashboard")
     } else if (user.role === "merchant") {
       redirectTo = "/merchant"
+      console.log("[v0] Merchant user detected, redirecting to merchant dashboard")
+    } else {
+      console.log("[v0] Customer user detected, redirecting to consumer dashboard")
     }
 
     console.log("[v0] Login successful, redirecting to:", redirectTo)

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CreditCard, Building2, ArrowRight, DollarSign, Shield, Clock, CheckCircle } from "lucide-react"
+import { useAccount } from "wagmi"
 
 interface PaymentMethod {
   id: string
@@ -109,10 +110,31 @@ const paymentMethods: PaymentMethod[] = [
 ]
 
 export default function OnrampPage() {
+  const { address: walletAddress, isConnected } = useAccount()
+
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
   const [amount, setAmount] = useState("")
   const [step, setStep] = useState<"select" | "amount" | "payment" | "complete">("select")
   const [paymentResult, setPaymentResult] = useState<{ amountUsd: number; puffAmount: number } | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchUserSession()
+  }, [])
+
+  const fetchUserSession = async () => {
+    try {
+      const response = await fetch("/api/auth/session")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.user?.id) {
+          setUserId(data.user.id)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch user session:", error)
+    }
+  }
 
   const selectedPaymentMethod = paymentMethods.find((method) => method.id === selectedMethod)
   const usdAmount = Number.parseFloat(amount) || 0
@@ -152,7 +174,15 @@ export default function OnrampPage() {
     try {
       console.log("[v0] Starting payment processing for method:", selectedMethod)
 
-      const userId = "user-placeholder-id" // TODO: Get from auth context
+      if (!userId) {
+        alert("Please log in to continue")
+        return
+      }
+
+      if (!isConnected || !walletAddress) {
+        alert("Please connect your wallet to continue")
+        return
+      }
 
       if (selectedMethod === "cybrid") {
         const response = await fetch("/api/payments/cybrid", {
@@ -162,7 +192,7 @@ export default function OnrampPage() {
             userId,
             amount: usdAmount,
             currency: "USD",
-            walletAddress: "0x0000000000000000000000000000000000000000", // TODO: Get from connected wallet
+            walletAddress,
           }),
         })
 
@@ -203,7 +233,7 @@ export default function OnrampPage() {
             userId,
             amount: usdAmount,
             currency: "USD",
-            walletAddress: "0x0000000000000000000000000000000000000000", // TODO: Get from connected wallet
+            walletAddress,
           }),
         })
 

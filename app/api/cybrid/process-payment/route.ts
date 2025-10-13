@@ -1,11 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
+import { getSession } from "@/lib/auth"
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: NextRequest) {
   try {
     console.log("[v0] Processing Cybrid payment")
+
+    const user = await getSession()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
     const { amount, fees, puffAmount } = await request.json()
 
@@ -25,7 +31,7 @@ export async function POST(request: NextRequest) {
         external_transaction_id, puff_amount, created_at
       ) VALUES (
         ${transactionId},
-        'demo_user', -- TODO: Get actual user ID from session
+        ${user.id}, -- Use actual authenticated user ID
         ${amount},
         ${fees},
         'completed',
