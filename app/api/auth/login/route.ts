@@ -59,14 +59,18 @@ export async function POST(request: NextRequest) {
       const userRole = isAdminTrustee ? "admin" : "customer"
       console.log("[v0] Wallet role determined:", userRole)
 
+      const defaultName = `Wallet_${walletAddress.substring(2, 10)}`
+
       console.log("[v0] Creating new user with role:", userRole)
       const newUsers = await sql`
         INSERT INTO users (
+          name,
           email,
           wallet_address,
           role,
           created_at
         ) VALUES (
+          ${defaultName},
           ${`${walletAddress}@wallet.puffpass.app`},
           ${walletAddress},
           ${userRole},

@@ -1,5 +1,7 @@
-import { sql } from "@neondatabase/serverless"
+import { neon } from "@neondatabase/serverless"
 import { verifySignature } from "@/lib/utils/verify-signature"
+
+const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(req: Request) {
   const rawBody = await req.text()

@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSql } from "@/lib/database"
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const sql = await getSql()
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { is_active } = body
 
