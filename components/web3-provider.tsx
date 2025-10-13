@@ -102,7 +102,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        const { WagmiProvider, http, createConfig } = wagmi
+        const { WagmiProvider, http, createConfig, cookieStorage, createStorage } = wagmi
         const { QueryClient, QueryClientProvider } = tanstackQuery
         const { mainnet, polygon, sepolia } = wagmiChains
         const { injected, walletConnect } = wagmiConnectors
@@ -133,6 +133,10 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
             [polygon.id]: http(),
             [sepolia.id]: http(),
           },
+          ssr: true,
+          storage: createStorage({
+            storage: cookieStorage,
+          }),
         })
 
         const queryClient = new QueryClient({

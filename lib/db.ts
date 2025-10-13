@@ -2,7 +2,7 @@ import { neon } from "@neondatabase/serverless"
 
 let _sql: any | null = null
 
-function getSql() {
+export async function getSql() {
   if (!_sql) {
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL not set")
@@ -11,8 +11,6 @@ function getSql() {
   }
   return _sql
 }
-
-export { getSql }
 
 export interface User {
   id: string
@@ -131,10 +129,10 @@ export async function createUser({
   authMethod?: "password" | "wallet" | "passkey"
   embeddedWallet?: string
 }): Promise<User> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "users")
+  await ensureTable(sql, "users")
 
   if (!email || email.trim() === "") {
     throw new Error("Email is required and cannot be empty")
@@ -195,10 +193,10 @@ export async function createUser({
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "users")
+  await ensureTable(sql, "users")
 
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] getUserByEmail called with invalid email:", email)
@@ -246,10 +244,10 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "users")
+  await ensureTable(sql, "users")
 
   if (!id || typeof id !== "string" || id.trim() === "") {
     console.log("[v0] getUserById called with invalid id:", id)
@@ -288,10 +286,10 @@ export async function getUserById(id: string): Promise<User | null> {
 }
 
 export async function verifyPassword(email: string, password: string): Promise<User | null> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "users")
+  await ensureTable(sql, "users")
 
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] verifyPassword called with invalid email:", email)
@@ -354,10 +352,10 @@ export async function getUserByEmailAndRole(
   email: string,
   role: "customer" | "merchant" | "admin",
 ): Promise<(User & { password_hash: string }) | null> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "users")
+  await ensureTable(sql, "users")
 
   if (!email || typeof email !== "string" || email.trim() === "") {
     console.log("[v0] getUserByEmailAndRole called with invalid email:", email)
@@ -411,10 +409,10 @@ export async function getUserByEmailAndRole(
 }
 
 export async function createProduct(productData: Omit<Product, "id" | "created_at" | "updated_at">) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "products")
+  await ensureTable(sql, "products")
 
   const result = await sql`
     INSERT INTO products (name, description, category, strain_type, thc_percentage, cbd_percentage, price_per_unit, unit_type, merchant_id, stock_quantity, lab_tested, status)
@@ -425,10 +423,10 @@ export async function createProduct(productData: Omit<Product, "id" | "created_a
 }
 
 export async function getProductsByMerchant(merchantId: string): Promise<Product[]> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "products")
+  await ensureTable(sql, "products")
 
   const result = await sql`
     SELECT * FROM products 
@@ -439,10 +437,10 @@ export async function getProductsByMerchant(merchantId: string): Promise<Product
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "products")
+  await ensureTable(sql, "products")
 
   const result = await sql`
     SELECT * FROM products WHERE id = ${id}
@@ -451,10 +449,10 @@ export async function getProductById(id: string): Promise<Product | null> {
 }
 
 export async function updateProductStock(productId: string, newStock: number) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "products")
+  await ensureTable(sql, "products")
 
   await sql`
     UPDATE products 
@@ -464,10 +462,10 @@ export async function updateProductStock(productId: string, newStock: number) {
 }
 
 export async function createOrder(orderData: Omit<Order, "id" | "created_at" | "updated_at">) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "orders")
+  await ensureTable(sql, "orders")
 
   const result = await sql`
     INSERT INTO orders (customer_id, merchant_id, total_amount, tax_amount, status, payment_method, payment_status, delivery_method, delivery_address, notes)
@@ -478,10 +476,10 @@ export async function createOrder(orderData: Omit<Order, "id" | "created_at" | "
 }
 
 export async function createOrderItem(orderItem: Omit<OrderItem, "id" | "created_at">) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "order_items")
+  await ensureTable(sql, "order_items")
 
   const result = await sql`
     INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price)
@@ -492,10 +490,10 @@ export async function createOrderItem(orderItem: Omit<OrderItem, "id" | "created
 }
 
 export async function getOrdersByCustomer(customerId: string): Promise<Order[]> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "orders")
+  await ensureTable(sql, "orders")
 
   const result = await sql`
     SELECT * FROM orders 
@@ -506,10 +504,10 @@ export async function getOrdersByCustomer(customerId: string): Promise<Order[]> 
 }
 
 export async function getOrdersByMerchant(merchantId: string): Promise<Order[]> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "orders")
+  await ensureTable(sql, "orders")
 
   const result = await sql`
     SELECT * FROM orders 
@@ -520,10 +518,10 @@ export async function getOrdersByMerchant(merchantId: string): Promise<Order[]> 
 }
 
 export async function updateOrderStatus(orderId: string, status: Order["status"]) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "orders")
+  await ensureTable(sql, "orders")
 
   await sql`
     UPDATE orders 
@@ -533,10 +531,10 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
 }
 
 export async function createMerchantProfile(profileData: Omit<MerchantProfile, "id" | "created_at" | "updated_at">) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "merchant_profiles")
+  await ensureTable(sql, "merchant_profiles")
 
   const result = await sql`
     INSERT INTO merchant_profiles (user_id, business_name, license_number, license_type, business_address, phone, email, metrc_facility_id, approval_status)
@@ -547,10 +545,10 @@ export async function createMerchantProfile(profileData: Omit<MerchantProfile, "
 }
 
 export async function getMerchantProfile(userId: string): Promise<MerchantProfile | null> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "merchant_profiles")
+  await ensureTable(sql, "merchant_profiles")
 
   const result = await sql`
     SELECT * FROM merchant_profiles WHERE user_id = ${userId}
@@ -559,10 +557,10 @@ export async function getMerchantProfile(userId: string): Promise<MerchantProfil
 }
 
 export async function getPendingMerchantApprovals(): Promise<MerchantProfile[]> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "merchant_profiles")
+  await ensureTable(sql, "merchant_profiles")
 
   const result = await sql`
     SELECT * FROM merchant_profiles 
@@ -573,10 +571,10 @@ export async function getPendingMerchantApprovals(): Promise<MerchantProfile[]> 
 }
 
 export async function approveMerchant(profileId: string, approvedBy: string) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "merchant_profiles")
+  await ensureTable(sql, "merchant_profiles")
 
   await sql`
     UPDATE merchant_profiles 
@@ -586,10 +584,10 @@ export async function approveMerchant(profileId: string, approvedBy: string) {
 }
 
 export async function createApprovalWorkflow(workflowData: Omit<ApprovalWorkflow, "id" | "created_at" | "updated_at">) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "approval_workflows")
+  await ensureTable(sql, "approval_workflows")
 
   const result = await sql`
     INSERT INTO approval_workflows (workflow_type, entity_id, entity_type, status, requested_by, assigned_to, notes)
@@ -600,10 +598,10 @@ export async function createApprovalWorkflow(workflowData: Omit<ApprovalWorkflow
 }
 
 export async function getPendingApprovals(assignedTo?: string): Promise<ApprovalWorkflow[]> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "approval_workflows")
+  await ensureTable(sql, "approval_workflows")
 
   const query = assignedTo
     ? sql`SELECT * FROM approval_workflows WHERE status = 'pending' AND assigned_to = ${assignedTo} ORDER BY created_at ASC`
@@ -619,10 +617,10 @@ export async function updateApprovalStatus(
   approvedBy: string,
   rejectionReason?: string,
 ) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "approval_workflows")
+  await ensureTable(sql, "approval_workflows")
 
   await sql`
     UPDATE approval_workflows 
@@ -632,10 +630,10 @@ export async function updateApprovalStatus(
 }
 
 export async function addPuffPoints(userId: string, points: number, transactionDescription: string, orderId?: string) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "puff_points")
+  await ensureTable(sql, "puff_points")
 
   await sql`
     INSERT INTO puff_points (user_id, points_earned, points_balance, transaction_type, transaction_description, order_id)
@@ -654,10 +652,10 @@ export async function addPuffPoints(userId: string, points: number, transactionD
 }
 
 export async function getUserPuffPoints(userId: string): Promise<number> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "puff_points")
+  await ensureTable(sql, "puff_points")
 
   const result = await sql`
     SELECT COALESCE(SUM(points_earned) - SUM(points_spent), 0) as balance
@@ -668,10 +666,10 @@ export async function getUserPuffPoints(userId: string): Promise<number> {
 }
 
 export async function getUserByWallet(walletAddress: string): Promise<User | null> {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "users")
+  await ensureTable(sql, "users")
 
   if (!walletAddress || typeof walletAddress !== "string" || walletAddress.trim() === "") {
     console.log("[v0] getUserByWallet called with invalid wallet address:", walletAddress)
@@ -719,10 +717,10 @@ export async function getUserByWallet(walletAddress: string): Promise<User | nul
 }
 
 export async function getProviderId(name: string) {
-  const sql = getSql()
+  const sql = await getSql()
 
   const { ensureTable } = require("./db-migrations")
-  ensureTable(sql, "providers")
+  await ensureTable(sql, "providers")
 
   try {
     const result = await sql`

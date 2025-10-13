@@ -145,6 +145,6 @@ export async function ensureCriticalTables(sql: NeonQueryFunction<false, false>)
 /**
  * Resets the migration cache. Useful for testing.
  */
-export function resetMigrationCache(): void {
+export async function resetMigrationCache(): Promise<void> {
   migratedTables.clear()
 }

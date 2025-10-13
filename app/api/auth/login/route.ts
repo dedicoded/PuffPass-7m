@@ -1,4 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getSql } from "@/lib/db"
+import { verifyAdminTrusteeWallet } from "@/lib/auth-enhanced"
+import { verifyMessage } from "viem"
+import { SignJWT } from "jose"
 
 export const runtime = "nodejs"
 
@@ -21,10 +25,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
     }
 
-    console.log("[v0] Dynamically importing viem for signature verification...")
-    const { verifyMessage } = await import("viem")
-    console.log("[v0] Viem imported successfully")
-
     console.log("[v0] Verifying signature...")
     const isValid = await verifyMessage({
       address: walletAddress as `0x${string}`,
@@ -38,15 +38,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 })
     }
 
-    console.log("[v0] Dynamically importing database connection...")
-    const { getSql } = await import("@/lib/db")
     console.log("[v0] Getting database connection...")
     const sql = await getSql()
     console.log("[v0] Database connection established")
 
     console.log("[v0] Looking up user by wallet address...")
     const users = await sql`
-      SELECT id, email, name, role, wallet_address, embedded_wallet, kyc_status
+      SELECT id, email, name, role, wallet_address
       FROM users
       WHERE LOWER(wallet_address) = LOWER(${walletAddress})
       LIMIT 1
@@ -57,7 +55,6 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       console.log("[v0] Checking if wallet is admin trustee...")
-      const { verifyAdminTrusteeWallet } = await import("@/lib/auth-enhanced")
       const isAdminTrustee = await verifyAdminTrusteeWallet(walletAddress)
       const userRole = isAdminTrustee ? "admin" : "customer"
       console.log("[v0] Wallet role determined:", userRole)
@@ -68,16 +65,14 @@ export async function POST(request: NextRequest) {
           email,
           wallet_address,
           role,
-          auth_method,
           created_at
         ) VALUES (
           ${`${walletAddress}@wallet.puffpass.app`},
           ${walletAddress},
           ${userRole},
-          'wallet',
           NOW()
         )
-        RETURNING id, email, name, role, wallet_address, embedded_wallet, kyc_status
+        RETURNING id, email, name, role, wallet_address
       `
       user = newUsers[0]
       console.log("[v0] New user created with ID:", user.id, "and role:", user.role)
@@ -85,20 +80,18 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Logging successful authentication...")
     await sql`
-      INSERT INTO audit_logs (
-        actor_id,
-        actor_type,
+      INSERT INTO age_verification_logs (
+        user_id,
+        route,
+        verified,
         action,
-        resource_type,
-        resource_id,
-        metadata,
+        audit_event,
         created_at
       ) VALUES (
         ${user.id},
-        'user',
+        '/api/auth/login',
+        true,
         'WALLET_LOGIN_SUCCESS',
-        'authentication',
-        ${user.id},
         ${JSON.stringify({
           walletAddress,
           role: user.role,
@@ -109,8 +102,9 @@ export async function POST(request: NextRequest) {
     `
 
     console.log("[v0] Creating session...")
-    const { SignJWT } = await import("jose")
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback-secret-for-dev")
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET || process.env.SESSION_SECRET || "fallback-secret-for-dev",
+    )
     const token = await new SignJWT({
       userId: user.id,
       walletAddress: user.wallet_address,
