@@ -3,7 +3,7 @@ import { CircuitBreaker, type CircuitBreakerConfig } from "./circuit-breaker"
 
 let _sql: ReturnType<typeof neon> | null = null
 
-function getSql() {
+async function getSql() {
   if (!_sql) {
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL not set")
@@ -37,7 +37,7 @@ export async function executeQuery<T = any>(
   return await readCircuitBreaker.execute(
     async () => {
       console.log(`[v0] Executing database query with circuit breaker protection`)
-      const sql = getSql()
+      const sql = await getSql()
       return (await sql(query, ...params)) as T[]
     },
     async () => {
@@ -56,7 +56,7 @@ export async function executeWrite<T = any>(
   return await writeCircuitBreaker.execute(
     async () => {
       console.log(`[v0] Executing database write with circuit breaker protection`)
-      const sql = getSql()
+      const sql = await getSql()
       return (await sql(query, ...params)) as T[]
     },
     async () => {

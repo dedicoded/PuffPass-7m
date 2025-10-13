@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Reward ID is required" }, { status: 400 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Start transaction
     await sql`BEGIN`

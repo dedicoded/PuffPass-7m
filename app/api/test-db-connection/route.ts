@@ -3,7 +3,7 @@ import { getSql } from "@/lib/db"
 
 export async function GET() {
   try {
-    const sql = getSql()
+    const sql = await getSql()
 
     // Test basic connection
     const connectionTest = await sql`SELECT NOW() as current_time`

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Executing migration script:", scriptName)
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Execute the SQL script within a transaction
     await sql.transaction(async (tx) => {

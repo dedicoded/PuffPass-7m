@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Check if user already has a pending or approved verification
     const existingVerification = await sql`

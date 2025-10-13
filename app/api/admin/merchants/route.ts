@@ -11,7 +11,7 @@ export async function GET() {
 
     const pendingMerchants = await getPendingMerchantApprovals()
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Get user details for each merchant
     const merchantsWithDetails = []

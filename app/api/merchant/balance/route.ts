@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[v0] Fetching balance for merchant: ${session.id}`)
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Fetch merchant balance with better error handling
     const result = await sql`

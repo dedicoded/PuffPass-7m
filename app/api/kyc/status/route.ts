@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Get latest KYC verification for user
     const verification = await sql`

@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       }
 
       try {
-        const sql = getSql()
+        const sql = await getSql()
         await sql`
           INSERT INTO puff_transactions (user_id, transaction_type, amount, description, status, provider_id, created_at)
           VALUES (${userId}, 'crypto_deposit', ${amount}, ${"Test Sphere payment: " + testTransaction.id}, ${testTransaction.status}, ${providerId}, NOW())
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     console.log("[v0] Sphere payment created:", spherePayment.id)
 
     try {
-      const sql = getSql()
+      const sql = await getSql()
       await sql`
         INSERT INTO puff_transactions (user_id, transaction_type, amount, description, status, provider_id, created_at)
         VALUES (${userId}, 'crypto_deposit', ${amount}, ${"Sphere payment: " + spherePayment.id}, ${spherePayment.status}, ${providerId}, NOW())

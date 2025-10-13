@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "20")
     const offset = Number.parseInt(searchParams.get("offset") || "0")
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Build dynamic WHERE clause
     const conditions = ["status = 'active'"]

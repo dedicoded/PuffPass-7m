@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Merchant ID required" }, { status: 400 })
     }
 
-    const sql = getSql()
+    // Get SQL connection
+    const sql = await getSql()
 
     // Get total sales and orders
     const salesData = await sql`

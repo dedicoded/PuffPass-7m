@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     let availableBalance = 0
     try {
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     const result = await sql`
       SELECT 

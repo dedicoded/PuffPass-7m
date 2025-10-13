@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid payment data" }, { status: 400 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Create order
     const orderResult = await sql`

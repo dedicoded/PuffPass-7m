@@ -90,7 +90,7 @@ export async function createEnhancedSession(
       .setExpirationTime("7d")
       .sign(key)
 
-    const sql = getSql()
+    const sql = await getSql()
     // Store session in database for tracking
     await sql`
       INSERT INTO user_sessions (user_id, session_token, device_id, kyc_level, expires_at, created_at)
@@ -172,7 +172,7 @@ export async function getEnhancedSession(): Promise<AuthSession | null> {
     const key = getKey()
     const { payload } = await jwtVerify(session, key)
 
-    const sql = getSql()
+    const sql = await getSql()
     // Verify session exists in database and is not revoked
     const dbSession = await sql`
       SELECT us.*, u.name, u.email, u.role, u.wallet_address, u.patient_certification, u.dc_residency
@@ -214,7 +214,7 @@ export async function getEnhancedSession(): Promise<AuthSession | null> {
 // Check if user requires KYC upgrade
 export async function checkKycRequirement(userId: string, role: string): Promise<KycRequirement | null> {
   try {
-    const sql = getSql()
+    const sql = await getSql()
 
     // Admin role always requires full KYC with trustee wallet
     if (role === "admin") {
@@ -273,7 +273,7 @@ export async function checkKycRequirement(userId: string, role: string): Promise
 // Passkey registration
 export async function registerPasskey(userId: string, credential: PasskeyCredential): Promise<void> {
   try {
-    const sql = getSql()
+    const sql = await getSql()
     await sql`
       INSERT INTO user_passkeys (user_id, credential_id, public_key, counter, device_type, created_at)
       VALUES (${userId}, ${credential.id}, ${credential.publicKey}, ${credential.counter}, ${credential.deviceType}, NOW())
@@ -288,7 +288,7 @@ export async function registerPasskey(userId: string, credential: PasskeyCredent
 // Passkey authentication
 export async function authenticateWithPasskey(credentialId: string, signature: string): Promise<User | null> {
   try {
-    const sql = getSql()
+    const sql = await getSql()
     const result = await sql`
       SELECT up.*, u.id, u.email, u.name, u.role, u.wallet_address, u.patient_certification, u.dc_residency, u.created_at, u.updated_at
       FROM user_passkeys up
@@ -339,7 +339,7 @@ export async function verifyPasskey(email: string, passkeyCredential: any): Prom
 
     console.log("[v0] Verifying passkey for email:", email)
 
-    const sql = getSql()
+    const sql = await getSql()
     // Get user by email first
     const userResult = await sql`
       SELECT id, name, email, role, wallet_address, patient_certification, dc_residency, created_at, updated_at
@@ -400,7 +400,7 @@ export async function verifyPasskey(email: string, passkeyCredential: any): Prom
 // Revoke all sessions for a user (for security incidents)
 export async function revokeAllUserSessions(userId: string): Promise<void> {
   try {
-    const sql = getSql()
+    const sql = await getSql()
     await sql`
       DELETE FROM user_sessions WHERE user_id = ${userId}
     `
@@ -414,7 +414,7 @@ export async function revokeAllUserSessions(userId: string): Promise<void> {
 // Clean up expired sessions
 export async function cleanupExpiredSessions(): Promise<void> {
   try {
-    const sql = getSql()
+    const sql = await getSql()
     const result = await sql`
       DELETE FROM user_sessions WHERE expires_at < NOW()
     `
@@ -442,7 +442,7 @@ export async function createEmbeddedWallet(): Promise<{ address: string; private
 
     console.log("[v0] Embedded wallet created:", address)
 
-    const sql = getSql()
+    const sql = await getSql()
     // Store wallet in database for recovery
     await sql`
       INSERT INTO embedded_wallets (address, created_at)

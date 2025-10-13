@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     // Test database connection
     console.log("[v0] Testing database connection...")
     try {
-      const sql = getSql()
+      const sql = await getSql()
       const testResult = await sql`SELECT 1 as test`
       console.log("[v0] Database connection test successful:", testResult)
     } catch (dbError) {
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         console.log("[v0] Creating welcome bonus transaction...")
         const systemProviderId = await getProviderId("system")
 
-        const sql = getSql()
+        const sql = await getSql()
         await sql`
           INSERT INTO puff_transactions (
             user_id,

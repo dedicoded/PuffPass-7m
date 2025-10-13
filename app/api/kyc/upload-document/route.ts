@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File size too large. Maximum size is 10MB" }, { status: 400 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     const verification = await sql`
       SELECT id, user_id FROM kyc_verifications 

@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       console.log("[v0] Provider ID obtained:", providerId)
 
       if (providerId) {
-        const sql = getSql()
+        const sql = await getSql()
         console.log("[v0] Recording transaction in database")
 
         // Record transaction in database

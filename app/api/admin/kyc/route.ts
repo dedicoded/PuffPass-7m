@@ -3,7 +3,7 @@ import { getSql } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
-    const sql = getSql()
+    const sql = await getSql()
 
     // Get all KYC verifications for admin review
     const verifications = await sql`
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const newStatus = action === "approve" ? "approved" : "rejected"
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Update verification status
     await sql`

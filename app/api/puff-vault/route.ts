@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized - Admin access required" }, { status: 401 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Get total vault balance by source
     const vaultSummary = await sql`
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     const { action, amount, source, description } = await request.json()
 
     if (action === "add_reserve") {
-      const sql = getSql()
+      const sql = await getSql()
 
       // Add manual reserve funds
       await sql`

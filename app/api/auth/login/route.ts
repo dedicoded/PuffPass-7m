@@ -68,12 +68,14 @@ export async function POST(request: NextRequest) {
           email,
           wallet_address,
           role,
+          password,
           created_at
         ) VALUES (
           ${defaultName},
           ${`${walletAddress}@wallet.puffpass.app`},
           ${walletAddress},
           ${userRole},
+          NULL,
           NOW()
         )
         RETURNING id, email, name, role, wallet_address

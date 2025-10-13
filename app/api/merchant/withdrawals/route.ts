@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[v0] Fetching withdrawals for merchant: ${session.id}`)
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Fetch withdrawal requests for the merchant with better error handling
     let requests
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
     }
 
-    const sql = getSql()
+    const sql = await getSql()
 
     // Check available balance with better error handling
     let availableBalance = 0

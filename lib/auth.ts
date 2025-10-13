@@ -247,7 +247,7 @@ export async function destroySession() {
 export async function linkWalletToUser(userId: string, walletAddress: string): Promise<boolean> {
   try {
     const { getSql } = await import("@/lib/db")
-    const sql = getSql()
+    const sql = await getSql()
 
     await sql`
       UPDATE users 
