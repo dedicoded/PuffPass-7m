@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
           ${`${walletAddress}@wallet.puffpass.app`},
           ${walletAddress},
           ${userRole},
-          NULL,
+          '',
           NOW()
         )
         RETURNING id, email, name, role, wallet_address

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       verifications,
       statusCounts: statusCounts.reduce(
-        (acc, row) => {
+        (acc: Record<string, number>, row) => {
           acc[row.status] = Number.parseInt(row.count)
           return acc
         },
