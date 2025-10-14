@@ -29,6 +29,19 @@ export interface PasskeyCredential {
 }
 
 let _adminTrusteeWallet: string | null | undefined = undefined
+let _trustedWallets: string[] | null = null
+
+function getTrustedWallets(): string[] {
+  if (_trustedWallets === null) {
+    const trustedWalletsEnv = process.env.TRUSTED_WALLETS || process.env.NEXT_PUBLIC_ADMIN_TRUSTEE_WALLET
+    if (trustedWalletsEnv) {
+      _trustedWallets = trustedWalletsEnv.split(",").map((addr) => addr.trim().toLowerCase())
+    } else {
+      _trustedWallets = []
+    }
+  }
+  return _trustedWallets
+}
 
 function getAdminTrusteeWallet(): string | null {
   if (_adminTrusteeWallet === undefined) {
@@ -145,20 +158,28 @@ export async function createEnhancedSession(
   }
 }
 
-// Verify admin trustee wallet address
 export async function verifyAdminTrusteeWallet(walletAddress?: string): Promise<boolean> {
-  const adminTrusteeWallet = getAdminTrusteeWallet()
-
-  if (!adminTrusteeWallet) {
-    console.warn("[v0] Admin trustee wallet not configured")
-    return false
-  }
-
   if (!walletAddress) {
     return false
   }
 
-  return walletAddress.toLowerCase() === adminTrusteeWallet
+  const trustedWallets = getTrustedWallets()
+
+  if (trustedWallets.length === 0) {
+    console.warn("[v0] Admin trustee wallet not configured")
+    return false
+  }
+
+  const normalizedAddress = walletAddress.toLowerCase()
+  const isAdmin = trustedWallets.includes(normalizedAddress)
+
+  console.log("[v0] Checking wallet against trusted list:", {
+    wallet: normalizedAddress,
+    isAdmin,
+    trustedCount: trustedWallets.length,
+  })
+
+  return isAdmin
 }
 
 // Enhanced session verification with KYC checks
