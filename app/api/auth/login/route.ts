@@ -39,17 +39,43 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[v0] Getting database connection...")
-    const sql = await getSql()
-    console.log("[v0] Database connection established")
+    let sql
+    try {
+      sql = await getSql()
+      console.log("[v0] Database connection established")
+    } catch (dbError) {
+      console.error("[v0] Database connection error:", dbError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Database connection failed",
+          details: dbError instanceof Error ? dbError.message : "Unknown database error",
+        },
+        { status: 500 },
+      )
+    }
 
     console.log("[v0] Looking up user by wallet address...")
-    const users = await sql`
-      SELECT id, email, name, role, wallet_address
-      FROM users
-      WHERE LOWER(wallet_address) = LOWER(${walletAddress})
-      LIMIT 1
-    `
-    console.log("[v0] User lookup result:", users.length > 0 ? "Found" : "Not found")
+    let users
+    try {
+      users = await sql`
+        SELECT id, email, name, role, wallet_address
+        FROM users
+        WHERE LOWER(wallet_address) = LOWER(${walletAddress})
+        LIMIT 1
+      `
+      console.log("[v0] User lookup result:", users.length > 0 ? "Found" : "Not found")
+    } catch (queryError) {
+      console.error("[v0] User lookup query error:", queryError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Database query failed",
+          details: queryError instanceof Error ? queryError.message : "Unknown query error",
+        },
+        { status: 500 },
+      )
+    }
 
     let user = users[0]
 
@@ -62,26 +88,38 @@ export async function POST(request: NextRequest) {
       const defaultName = `Wallet_${walletAddress.substring(2, 10)}`
 
       console.log("[v0] Creating new user with role:", userRole)
-      const newUsers = await sql`
-        INSERT INTO users (
-          name,
-          email,
-          wallet_address,
-          role,
-          password,
-          created_at
-        ) VALUES (
-          ${defaultName},
-          ${`${walletAddress}@wallet.puffpass.app`},
-          ${walletAddress},
-          ${userRole},
-          '',
-          NOW()
+      try {
+        const newUsers = await sql`
+          INSERT INTO users (
+            name,
+            email,
+            wallet_address,
+            role,
+            password,
+            created_at
+          ) VALUES (
+            ${defaultName},
+            ${`${walletAddress}@wallet.puffpass.app`},
+            ${walletAddress},
+            ${userRole},
+            '',
+            NOW()
+          )
+          RETURNING id, email, name, role, wallet_address
+        `
+        user = newUsers[0]
+        console.log("[v0] New user created with ID:", user.id, "and role:", user.role)
+      } catch (createError) {
+        console.error("[v0] User creation error:", createError)
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to create user",
+            details: createError instanceof Error ? createError.message : "Unknown creation error",
+          },
+          { status: 500 },
         )
-        RETURNING id, email, name, role, wallet_address
-      `
-      user = newUsers[0]
-      console.log("[v0] New user created with ID:", user.id, "and role:", user.role)
+      }
     } else {
       console.log("[v0] Checking if existing user should be admin...")
       const isAdminTrustee = await verifyAdminTrusteeWallet(walletAddress)
@@ -89,39 +127,50 @@ export async function POST(request: NextRequest) {
 
       if (isAdminTrustee && user.role !== "admin") {
         console.log("[v0] Upgrading user role from", user.role, "to admin")
-        const updatedUsers = await sql`
-          UPDATE users
-          SET role = 'admin'
-          WHERE id = ${user.id}
-          RETURNING id, email, name, role, wallet_address
-        `
-        user = updatedUsers[0]
-        console.log("[v0] User role updated to:", user.role)
+        try {
+          const updatedUsers = await sql`
+            UPDATE users
+            SET role = 'admin'
+            WHERE id = ${user.id}
+            RETURNING id, email, name, role, wallet_address
+          `
+          user = updatedUsers[0]
+          console.log("[v0] User role updated to:", user.role)
+        } catch (updateError) {
+          console.error("[v0] Role update error:", updateError)
+          // Continue with existing role if update fails
+          console.log("[v0] Continuing with existing role:", user.role)
+        }
       }
     }
 
     console.log("[v0] Logging successful authentication...")
-    await sql`
-      INSERT INTO age_verification_logs (
-        user_id,
-        route,
-        verified,
-        action,
-        audit_event,
-        created_at
-      ) VALUES (
-        ${user.id},
-        '/api/auth/login',
-        true,
-        'WALLET_LOGIN_SUCCESS',
-        ${JSON.stringify({
-          walletAddress,
-          role: user.role,
-          timestamp: new Date().toISOString(),
-        })}::jsonb,
-        NOW()
-      )
-    `
+    try {
+      await sql`
+        INSERT INTO age_verification_logs (
+          user_id,
+          route,
+          verified,
+          action,
+          audit_event,
+          created_at
+        ) VALUES (
+          ${user.id},
+          '/api/auth/login',
+          true,
+          'WALLET_LOGIN_SUCCESS',
+          ${JSON.stringify({
+            walletAddress,
+            role: user.role,
+            timestamp: new Date().toISOString(),
+          })}::jsonb,
+          NOW()
+        )
+      `
+    } catch (logError) {
+      console.error("[v0] Audit log error:", logError)
+      // Continue even if logging fails
+    }
 
     console.log("[v0] Creating session...")
     const secret = new TextEncoder().encode(
@@ -152,7 +201,6 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Login successful, redirecting to:", redirectTo)
 
-    // This allows the frontend to handle the redirect after receiving the session cookie
     const response = NextResponse.json({
       success: true,
       user: {
