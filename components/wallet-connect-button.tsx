@@ -158,11 +158,11 @@ function WalletConnectButtonInner({
       if (data.success) {
         toast.success("Successfully logged in!")
         if (data.user?.role === "admin") {
-          router.push("/admin")
+          window.location.href = "/admin"
         } else if (data.user?.role === "merchant") {
-          router.push("/merchant")
+          window.location.href = "/merchant"
         } else {
-          router.push("/consumer")
+          window.location.href = "/consumer"
         }
       } else {
         throw new Error(data.error || "Wallet authentication failed")

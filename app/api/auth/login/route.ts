@@ -82,6 +82,22 @@ export async function POST(request: NextRequest) {
       `
       user = newUsers[0]
       console.log("[v0] New user created with ID:", user.id, "and role:", user.role)
+    } else {
+      console.log("[v0] Checking if existing user should be admin...")
+      const isAdminTrustee = await verifyAdminTrusteeWallet(walletAddress)
+      console.log("[v0] Admin trustee check result:", isAdminTrustee)
+
+      if (isAdminTrustee && user.role !== "admin") {
+        console.log("[v0] Upgrading user role from", user.role, "to admin")
+        const updatedUsers = await sql`
+          UPDATE users
+          SET role = 'admin'
+          WHERE id = ${user.id}
+          RETURNING id, email, name, role, wallet_address
+        `
+        user = updatedUsers[0]
+        console.log("[v0] User role updated to:", user.role)
+      }
     }
 
     console.log("[v0] Logging successful authentication...")
@@ -136,6 +152,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Login successful, redirecting to:", redirectTo)
 
+    // This allows the frontend to handle the redirect after receiving the session cookie
     const response = NextResponse.json({
       success: true,
       user: {
@@ -156,6 +173,7 @@ export async function POST(request: NextRequest) {
       path: "/",
     })
 
+    console.log("[v0] Session cookie set with name: session")
     console.log("[v0] ===== LOGIN SUCCESSFUL =====")
     return response
   } catch (error) {

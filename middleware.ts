@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { jwtVerify } from "jose"
 
 const AGE_VERIFICATION_ALLOWLIST = [
   "/age-verification",
@@ -11,6 +12,22 @@ const AGE_VERIFICATION_ALLOWLIST = [
   "/favicon.ico",
   "/public",
 ]
+
+async function verifySessionToken(token: string): Promise<{ role: string; userId: string } | null> {
+  try {
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET || process.env.SESSION_SECRET || "fallback-secret-for-dev",
+    )
+    const { payload } = await jwtVerify(token, secret)
+    return {
+      role: payload.role as string,
+      userId: payload.userId as string,
+    }
+  } catch (error) {
+    console.log("[v0] Session verification failed:", error)
+    return null
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
@@ -36,11 +53,21 @@ export async function middleware(request: NextRequest) {
     console.log("[AGE-VERIFICATION] Skipping for allowlisted route:", pathname)
 
     if (pathname.startsWith("/admin")) {
-      const adminToken = request.cookies.get("admin-session") || request.cookies.get("admin-trustee-token")
-      if (!adminToken) {
-        console.log("[v0] Redirecting to admin login")
+      const sessionToken = request.cookies.get("session")?.value
+
+      if (!sessionToken) {
+        console.log("[v0] No session token found, redirecting to login")
         return NextResponse.redirect(new URL("/login?role=admin", request.url))
       }
+
+      const session = await verifySessionToken(sessionToken)
+
+      if (!session || session.role !== "admin") {
+        console.log("[v0] Invalid session or not admin, redirecting to login")
+        return NextResponse.redirect(new URL("/login?role=admin", request.url))
+      }
+
+      console.log("[v0] Admin session verified, allowing access")
     }
 
     return response
@@ -56,11 +83,21 @@ export async function middleware(request: NextRequest) {
   console.log("[AGE-VERIFICATION] Passed:", pathname)
 
   if (pathname.startsWith("/admin")) {
-    const adminToken = request.cookies.get("admin-session") || request.cookies.get("admin-trustee-token")
-    if (!adminToken) {
-      console.log("[v0] Redirecting to admin login")
+    const sessionToken = request.cookies.get("session")?.value
+
+    if (!sessionToken) {
+      console.log("[v0] No session token found, redirecting to login")
       return NextResponse.redirect(new URL("/login?role=admin", request.url))
     }
+
+    const session = await verifySessionToken(sessionToken)
+
+    if (!session || session.role !== "admin") {
+      console.log("[v0] Invalid session or not admin, redirecting to login")
+      return NextResponse.redirect(new URL("/login?role=admin", request.url))
+    }
+
+    console.log("[v0] Admin session verified, allowing access")
   }
 
   return response

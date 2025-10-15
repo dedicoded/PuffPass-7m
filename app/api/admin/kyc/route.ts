@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSql } from "@/lib/db"
 
+type StatusCountRow = {
+  status: string
+  count: string
+}
+
 export async function GET(request: NextRequest) {
   try {
     const sql = await getSql()
@@ -35,7 +40,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       verifications,
       statusCounts: statusCounts.reduce(
-        (acc: Record<string, number>, row) => {
+        (acc: Record<string, number>, row: StatusCountRow) => {
           acc[row.status] = Number.parseInt(row.count)
           return acc
         },

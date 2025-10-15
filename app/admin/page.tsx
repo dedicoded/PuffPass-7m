@@ -182,7 +182,35 @@ export default function AdminDashboard() {
   const [rewardsPool, setRewardsPool] = useState<RewardsPool | null>(null)
   const [floatManagement, setFloatManagement] = useState<FloatManagement | null>(null)
 
+  const [isAuthorized, setIsAuthorized] = useState(false)
+
   useEffect(() => {
+    // Verify admin role on mount
+    const verifyAdminRole = async () => {
+      try {
+        const response = await fetch("/api/auth/verify")
+        if (response.ok) {
+          const data = await response.json()
+          if (data.role === "admin") {
+            setIsAuthorized(true)
+          } else {
+            window.location.href = "/login?error=unauthorized"
+          }
+        } else {
+          window.location.href = "/login?error=unauthorized"
+        }
+      } catch (error) {
+        console.error("Failed to verify admin role:", error)
+        window.location.href = "/login?error=unauthorized"
+      }
+    }
+
+    verifyAdminRole()
+  }, [])
+
+  useEffect(() => {
+    if (!isAuthorized) return
+
     fetchMerchantApplications()
     fetchUsers()
     fetchAnalytics()
@@ -193,7 +221,7 @@ export default function AdminDashboard() {
     fetchMerchantContributions()
     fetchRewardsPool()
     fetchFloatManagement()
-  }, [])
+  }, [isAuthorized])
 
   const fetchMerchantApplications = async () => {
     try {
@@ -470,12 +498,14 @@ export default function AdminDashboard() {
   const pendingWithdrawals = withdrawalRequests.filter((req) => req.status === "pending")
   const highPriorityAlerts = complianceAlerts.filter((alert) => alert.severity === "high" && alert.status === "open")
 
-  if (loading) {
+  if (!isAuthorized || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading admin dashboard...</p>
+          <p className="text-muted-foreground">
+            {!isAuthorized ? "Verifying admin access..." : "Loading admin dashboard..."}
+          </p>
         </div>
       </div>
     )
