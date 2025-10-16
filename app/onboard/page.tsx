@@ -131,6 +131,15 @@ export default function OnboardPage() {
         }),
       })
 
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[v0] Response is not JSON:", contentType)
+        const text = await response.text()
+        console.error("[v0] Response text:", text.substring(0, 200))
+        setSignupError("Server error. Please try again later.")
+        return
+      }
+
       const data = await response.json()
 
       if (data.success) {

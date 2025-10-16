@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, password, role, walletAddress, patientCertification, dcResidency, referralCode } = body
+    const { name, email, password, role, walletAddress, patientCertification, dcResidency, referralCode, phone } = body
 
     // Basic validation
     if (!name || !email || !password || !role) {
@@ -61,7 +61,21 @@ export async function POST(request: NextRequest) {
 
     // Check if user already exists
     console.log("[v0] Checking if user exists...")
-    const existingUser = await getUserByEmail(email)
+    let existingUser
+    try {
+      existingUser = await getUserByEmail(email)
+    } catch (userCheckError) {
+      console.error("[v0] Error checking if user exists:", userCheckError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to check if user exists",
+          details: process.env.NODE_ENV === "development" ? String(userCheckError) : undefined,
+        },
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      )
+    }
+
     if (existingUser) {
       console.log("[v0] User already exists with email:", email)
       return NextResponse.json(
@@ -72,8 +86,21 @@ export async function POST(request: NextRequest) {
 
     // Hash password using auth-utils
     console.log("[v0] Hashing password...")
-    const hashedPassword = await hashPassword(password)
-    console.log("[v0] Password hashed successfully")
+    let hashedPassword
+    try {
+      hashedPassword = await hashPassword(password)
+      console.log("[v0] Password hashed successfully")
+    } catch (hashError) {
+      console.error("[v0] Password hashing failed:", hashError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to hash password",
+          details: process.env.NODE_ENV === "development" ? String(hashError) : undefined,
+        },
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      )
+    }
 
     console.log("[v0] Creating embedded wallet for new user...")
     let embeddedWalletAddress: string | undefined
@@ -87,19 +114,33 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[v0] Creating user...")
-    const newUser = await createUser({
-      email,
-      name,
-      role,
-      hashedPassword,
-      walletAddress,
-      authMethod: "password",
-      embeddedWallet: embeddedWalletAddress,
-      patientCertification,
-      dcResidency,
-      referralCode,
-    })
-    console.log("[v0] User created successfully:", { id: newUser.id, email: newUser.email, role: newUser.role })
+    let newUser
+    try {
+      newUser = await createUser({
+        email,
+        name,
+        role,
+        hashedPassword,
+        walletAddress,
+        authMethod: "password",
+        embeddedWallet: embeddedWalletAddress,
+        patientCertification,
+        dcResidency,
+        referralCode,
+        phone, // Added phone field
+      })
+      console.log("[v0] User created successfully:", { id: newUser.id, email: newUser.email, role: newUser.role })
+    } catch (createUserError) {
+      console.error("[v0] User creation failed:", createUserError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to create user",
+          details: process.env.NODE_ENV === "development" ? String(createUserError) : undefined,
+        },
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      )
+    }
 
     if (role === "customer") {
       try {

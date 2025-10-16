@@ -201,17 +201,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Login successful, redirecting to:", redirectTo)
 
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        walletAddress: user.wallet_address,
-      },
-      redirectTo,
-    })
+    const response = NextResponse.redirect(new URL(redirectTo, request.url))
 
     response.cookies.set("session", token, {
       httpOnly: true,

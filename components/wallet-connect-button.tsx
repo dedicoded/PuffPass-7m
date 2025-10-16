@@ -130,6 +130,7 @@ function WalletConnectButtonInner({
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        redirect: "manual",
         body: JSON.stringify({
           loginType: "wallet",
           walletAddress,
@@ -138,6 +139,15 @@ function WalletConnectButtonInner({
           userType: "consumer",
         }),
       })
+
+      if (response.type === "opaqueredirect" || response.status === 307 || response.status === 302) {
+        const redirectUrl = response.headers.get("location")
+        if (redirectUrl) {
+          console.log("[v0] Following server redirect to:", redirectUrl)
+          window.location.href = redirectUrl
+          return
+        }
+      }
 
       let data
       const contentType = response.headers.get("content-type")
