@@ -33,10 +33,16 @@ import {
   Users,
   Zap,
   Target,
+  Globe,
+  GitBranch,
+  Package,
+  Server,
+  Code,
 } from "lucide-react"
 import { FloatAllocationDashboard } from "@/components/admin/float-allocation-dashboard"
 import { SecurityDashboard } from "@/components/admin/security-dashboard" // Import SecurityDashboard
 import { AgeVerificationDashboard } from "@/components/admin/age-verification-dashboard"
+import { RedemptionDashboard } from "@/components/admin/redemption-dashboard"
 
 interface MerchantApplication {
   id: string
@@ -182,6 +188,8 @@ export default function AdminDashboard() {
   const [rewardsPool, setRewardsPool] = useState<RewardsPool | null>(null)
   const [floatManagement, setFloatManagement] = useState<FloatManagement | null>(null)
 
+  const [deploymentInfo, setDeploymentInfo] = useState<any>(null)
+
   const [isAuthorized, setIsAuthorized] = useState(false)
 
   useEffect(() => {
@@ -221,6 +229,7 @@ export default function AdminDashboard() {
     fetchMerchantContributions()
     fetchRewardsPool()
     fetchFloatManagement()
+    fetchDeploymentInfo()
   }, [isAuthorized])
 
   const fetchMerchantApplications = async () => {
@@ -420,6 +429,53 @@ export default function AdminDashboard() {
     }
   }
 
+  const fetchDeploymentInfo = async () => {
+    try {
+      const response = await fetch("/api/admin/deployment-info")
+      if (response.ok) {
+        const data = await response.json()
+        setDeploymentInfo(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch deployment info:", error)
+      // Fallback to static data
+      setDeploymentInfo({
+        name: "PuffPass Cannabis Platform",
+        version: "1.0.0",
+        description: "Cannabis marketplace platform with crypto-native payment processing",
+        deployments: {
+          production: {
+            url: "https://puffpass.vercel.app",
+            branch: "main",
+            environment: "production",
+          },
+          staging: {
+            url: "https://puffpass-staging.vercel.app",
+            branch: "develop",
+            environment: "staging",
+          },
+        },
+        features: [
+          "Role-based authentication",
+          "Product catalog",
+          "Order management",
+          "Crypto-native payment processing",
+          "Age verification",
+          "Compliance tracking",
+        ],
+        tech_stack: {
+          frontend: "Next.js 15",
+          styling: "Tailwind CSS v4",
+          database: "PostgreSQL",
+          orm: "Drizzle",
+          auth: "NextAuth.js",
+          payments: "Cybrid + Sphere",
+          deployment: "Vercel",
+        },
+      })
+    }
+  }
+
   const handleMerchantApproval = async (merchantId: string, approved: boolean, notes?: string) => {
     try {
       const endpoint = approved
@@ -556,10 +612,12 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-10">
+          {/* Changed grid-cols-11 to grid-cols-12 to accommodate new tab */}
+          <TabsList className="grid w-full grid-cols-12">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             {/* Added new Puff Vault tab */}
             <TabsTrigger value="vault">Puff Vault</TabsTrigger>
+            <TabsTrigger value="redemption">Redemption</TabsTrigger>
             <TabsTrigger value="float">Float Management</TabsTrigger>
             <TabsTrigger value="merchants">Merchants</TabsTrigger>
             <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
@@ -568,6 +626,8 @@ export default function AdminDashboard() {
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="age-verification">Age Verification</TabsTrigger>
+            {/* Added Deployment tab */}
+            <TabsTrigger value="deployment">Deployment</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -1309,6 +1369,183 @@ export default function AdminDashboard() {
 
           <TabsContent value="age-verification" className="space-y-6">
             <AgeVerificationDashboard />
+          </TabsContent>
+
+          <TabsContent value="redemption" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">PUFF Redemption System</h2>
+                <p className="text-muted-foreground">Manage USDC-backed PUFF token redemptions (100 PUFF = $1 USDC)</p>
+              </div>
+              <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-2">
+                Smart Contract Powered
+              </Badge>
+            </div>
+
+            <RedemptionDashboard />
+          </TabsContent>
+
+          <TabsContent value="deployment" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Deployment Information</h2>
+                <p className="text-muted-foreground">Platform deployment details and technical stack</p>
+              </div>
+              <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-2">
+                <Globe className="w-4 h-4 mr-2" />v{deploymentInfo?.version || "1.0.0"}
+              </Badge>
+            </div>
+
+            {/* Platform Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Package className="w-5 h-5 mr-2" />
+                  Platform Overview
+                </CardTitle>
+                <CardDescription>{deploymentInfo?.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-primary/5 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Platform Name</p>
+                    <p className="font-bold text-lg">{deploymentInfo?.name}</p>
+                  </div>
+                  <div className="p-4 bg-chart-2/5 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Version</p>
+                    <p className="font-bold text-lg">{deploymentInfo?.version}</p>
+                  </div>
+                  <div className="p-4 bg-chart-3/5 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Deployment Platform</p>
+                    <p className="font-bold text-lg">{deploymentInfo?.tech_stack?.deployment || "Vercel"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Deployment Environments */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-green-800 dark:text-green-100">
+                    <Server className="w-5 h-5 mr-2" />
+                    Production Environment
+                  </CardTitle>
+                  <CardDescription className="text-green-700 dark:text-green-200">
+                    Live production deployment
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-white dark:bg-green-950 rounded-lg">
+                    <span className="text-sm font-medium">URL</span>
+                    <a
+                      href={deploymentInfo?.deployments?.production?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex items-center"
+                    >
+                      {deploymentInfo?.deployments?.production?.url}
+                      <Globe className="w-3 h-3 ml-1" />
+                    </a>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white dark:bg-green-950 rounded-lg">
+                    <span className="text-sm font-medium">Branch</span>
+                    <Badge variant="outline" className="flex items-center">
+                      <GitBranch className="w-3 h-3 mr-1" />
+                      {deploymentInfo?.deployments?.production?.branch || "main"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white dark:bg-green-950 rounded-lg">
+                    <span className="text-sm font-medium">Environment</span>
+                    <Badge className="bg-green-600 text-white">
+                      {deploymentInfo?.deployments?.production?.environment || "production"}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-blue-800 dark:text-blue-100">
+                    <Server className="w-5 h-5 mr-2" />
+                    Staging Environment
+                  </CardTitle>
+                  <CardDescription className="text-blue-700 dark:text-blue-200">
+                    Testing and development deployment
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-white dark:bg-blue-950 rounded-lg">
+                    <span className="text-sm font-medium">URL</span>
+                    <a
+                      href={deploymentInfo?.deployments?.staging?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex items-center"
+                    >
+                      {deploymentInfo?.deployments?.staging?.url}
+                      <Globe className="w-3 h-3 ml-1" />
+                    </a>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white dark:bg-blue-950 rounded-lg">
+                    <span className="text-sm font-medium">Branch</span>
+                    <Badge variant="outline" className="flex items-center">
+                      <GitBranch className="w-3 h-3 mr-1" />
+                      {deploymentInfo?.deployments?.staging?.branch || "develop"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white dark:bg-blue-950 rounded-lg">
+                    <span className="text-sm font-medium">Environment</span>
+                    <Badge className="bg-blue-600 text-white">
+                      {deploymentInfo?.deployments?.staging?.environment || "staging"}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Technical Stack */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Code className="w-5 h-5 mr-2" />
+                  Technical Stack
+                </CardTitle>
+                <CardDescription>Technologies powering the PuffPass platform</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {deploymentInfo?.tech_stack &&
+                    Object.entries(deploymentInfo.tech_stack).map(([key, value]) => (
+                      <div key={key} className="p-4 border rounded-lg hover:bg-accent transition-colors">
+                        <p className="text-sm text-muted-foreground capitalize mb-1">{key.replace("_", " ")}</p>
+                        <p className="font-medium">{value as string}</p>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Platform Features */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Platform Features
+                </CardTitle>
+                <CardDescription>Core capabilities and functionality</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {deploymentInfo?.features?.map((feature: string, index: number) => (
+                    <div key={index} className="flex items-center space-x-3 p-3 border rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span className="font-medium">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

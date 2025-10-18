@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
         email,
         name,
         role,
-        hashedPassword,
+        password: hashedPassword, // createUser expects 'password' parameter, not 'hashedPassword'
         walletAddress,
         authMethod: "password",
         embeddedWallet: embeddedWalletAddress,

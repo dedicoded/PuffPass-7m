@@ -97,10 +97,10 @@ function WalletConnectButtonInner({
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   useEffect(() => {
-    if (autoLogin && isConnected && address && !isAuthenticating) {
+    if (isConnected && address && !isAuthenticating) {
       handleAuthentication(address)
     }
-  }, [autoLogin, isConnected, address])
+  }, [isConnected, address])
 
   const handleAuthentication = async (walletAddress: string) => {
     try {
@@ -130,7 +130,6 @@ function WalletConnectButtonInner({
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        redirect: "manual",
         body: JSON.stringify({
           loginType: "wallet",
           walletAddress,
@@ -138,45 +137,34 @@ function WalletConnectButtonInner({
           message,
           userType: "consumer",
         }),
+        redirect: "manual", // Don't follow redirects automatically
       })
 
-      if (response.type === "opaqueredirect" || response.status === 307 || response.status === 302) {
-        const redirectUrl = response.headers.get("location")
-        if (redirectUrl) {
-          console.log("[v0] Following server redirect to:", redirectUrl)
-          window.location.href = redirectUrl
-          return
-        }
-      }
+      console.log("[v0] Login API response status:", response.status)
+      console.log("[v0] Response type:", response.type)
 
-      let data
       const contentType = response.headers.get("content-type")
-
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json()
-      } else {
-        const text = await response.text()
-        console.error("[v0] Non-JSON error response:", text)
-        data = {
-          success: false,
-          error: text || "Server error occurred",
-        }
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Unexpected response format from server")
       }
 
-      console.log("[v0] Wallet authentication response:", data)
+      const data = await response.json()
+      console.log("[v0] Login response:", data)
 
-      if (data.success) {
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed")
+      }
+
+      if (data.success && data.redirectTo) {
         toast.success("Successfully logged in!")
-        if (data.user?.role === "admin") {
-          window.location.href = "/admin"
-        } else if (data.user?.role === "merchant") {
-          window.location.href = "/merchant"
-        } else {
-          window.location.href = "/consumer"
-        }
-      } else {
-        throw new Error(data.error || "Wallet authentication failed")
+        console.log("[v0] Navigating to:", data.redirectTo)
+        // Small delay to ensure cookie is set before navigation
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        window.location.href = data.redirectTo
+        return
       }
+
+      throw new Error("Invalid response from server")
     } catch (err: any) {
       console.error("[v0] Wallet authentication error:", err)
       toast.error(err.message || "Failed to authenticate wallet")

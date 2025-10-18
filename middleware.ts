@@ -6,6 +6,7 @@ const AGE_VERIFICATION_ALLOWLIST = [
   "/age-verification",
   "/login",
   "/register",
+  "/onboard", // Added /onboard to allow post-registration flow
   "/api",
   "/_next",
   "/_vercel",

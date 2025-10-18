@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Coins, Star, Gift, TrendingUp, ArrowRight, Leaf, Clock, MapPin } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { PuffPassLogo } from "@/components/puffpass-logo"
 
 interface ConsumerBalance {
   total_points: number
@@ -178,7 +179,7 @@ export default function ConsumerApp() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/images/puff-pass-logo.png" alt="Puff Pass" className="h-10 w-auto" />
+              <PuffPassLogo size="md" />
               <div>
                 <h1 className="text-xl font-bold">Puff Pass</h1>
                 <p className="text-sm text-muted-foreground">Consumer App</p>

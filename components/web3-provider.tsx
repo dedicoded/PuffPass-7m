@@ -36,6 +36,9 @@ async function safeHealthLog(metrics: any) {
   }
 }
 
+let cachedConfig: any = null
+let cachedQueryClient: any = null
+
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [hasWeb3, setHasWeb3] = useState(false)
@@ -53,7 +56,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
       const startTime = Date.now()
 
       try {
-        console.log("[v0] Initializing wagmi with native connectors...")
+        console.log("[v0] Initializing wagmi with optimized connectors...")
 
         if (!isCryptoAvailable()) {
           console.warn("[v0] Browser crypto not available")
@@ -69,7 +72,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        const [wagmi, tanstackQuery, wagmiChains, wagmiConnectors] = await Promise.all([
+        const [wagmi, tanstackQuery] = await Promise.all([
           import("wagmi").catch((err) => {
             console.error("[v0] Failed to import wagmi:", err)
             return null
@@ -78,17 +81,9 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
             console.error("[v0] Failed to import react-query:", err)
             return null
           }),
-          import("wagmi/chains").catch((err) => {
-            console.error("[v0] Failed to import wagmi chains:", err)
-            return null
-          }),
-          import("wagmi/connectors").catch((err) => {
-            console.error("[v0] Failed to import wagmi connectors:", err)
-            return null
-          }),
         ])
 
-        if (!wagmi || !tanstackQuery || !wagmiChains || !wagmiConnectors) {
+        if (!wagmi || !tanstackQuery) {
           console.warn("[v0] Web3 dependencies failed to load - continuing without Web3")
           setHealthStatus({
             isHealthy: false,
@@ -104,49 +99,62 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
 
         const { WagmiProvider, http, createConfig, cookieStorage, createStorage } = wagmi
         const { QueryClient, QueryClientProvider } = tanstackQuery
-        const { mainnet, polygon, sepolia } = wagmiChains
-        const { injected, walletConnect } = wagmiConnectors
 
-        const config = createConfig({
-          chains: [mainnet, polygon, sepolia],
-          connectors: [
-            injected(),
-            // Only add WalletConnect if we have a real project ID
-            ...(projectId !== "demo-project-id"
-              ? [
-                  walletConnect({
-                    projectId,
-                    metadata: {
-                      name: "PuffPass",
-                      description: "Cannabis compliance and payment platform",
-                      url: typeof window !== "undefined" ? window.location.origin : "https://puffpass.app",
-                      icons: [
-                        `${typeof window !== "undefined" ? window.location.origin : "https://puffpass.app"}/icon.png`,
-                      ],
-                    },
-                  }),
-                ]
-              : []),
-          ],
-          transports: {
-            [mainnet.id]: http(),
-            [polygon.id]: http(),
-            [sepolia.id]: http(),
-          },
-          ssr: true,
-          storage: createStorage({
-            storage: cookieStorage,
-          }),
-        })
+        if (!cachedConfig) {
+          const [wagmiChains, wagmiConnectors] = await Promise.all([import("wagmi/chains"), import("wagmi/connectors")])
 
-        const queryClient = new QueryClient({
-          defaultOptions: {
-            queries: {
-              retry: 1,
-              refetchOnWindowFocus: false,
+          const { sepolia } = wagmiChains
+          const { injected, walletConnect } = wagmiConnectors
+
+          cachedConfig = createConfig({
+            chains: [sepolia],
+            connectors: [
+              injected(),
+              ...(projectId !== "demo-project-id"
+                ? [
+                    walletConnect({
+                      projectId,
+                      metadata: {
+                        name: "PuffPass",
+                        description: "Cannabis compliance and payment platform",
+                        url: typeof window !== "undefined" ? window.location.origin : "https://puffpass.app",
+                        icons: [
+                          `${typeof window !== "undefined" ? window.location.origin : "https://puffpass.app"}/icon.png`,
+                        ],
+                      },
+                      showQrModal: true,
+                    }),
+                  ]
+                : []),
+            ],
+            transports: {
+              [sepolia.id]: http(),
             },
-          },
-        })
+            ssr: true,
+            storage: createStorage({
+              storage: cookieStorage,
+            }),
+            batch: {
+              multicall: false,
+            },
+            multiInjectedProviderDiscovery: false,
+          })
+        }
+
+        if (!cachedQueryClient) {
+          cachedQueryClient = new QueryClient({
+            defaultOptions: {
+              queries: {
+                retry: 0,
+                refetchOnWindowFocus: false,
+                refetchOnMount: false,
+                refetchOnReconnect: false,
+                staleTime: Number.POSITIVE_INFINITY,
+                cacheTime: Number.POSITIVE_INFINITY,
+              },
+            },
+          })
+        }
 
         const finalLatency = Date.now() - startTime
         console.log(`[v0] Wagmi initialized successfully in ${finalLatency}ms`)
@@ -157,7 +165,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           errorCount: 0,
           projectId,
           isDemo: projectId === "demo-project-id",
-          provider: "wagmi-native",
+          provider: "wagmi-optimized",
           connectionAttempts: 1,
           successfulConnections: 1,
           failedConnections: 0,
@@ -167,6 +175,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           metadata: {
             initialization_time_ms: finalLatency,
             api_health_check: "passed",
+            cached: cachedConfig !== null,
           },
         })
 
@@ -182,8 +191,8 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
         setWeb3Components({
           WagmiProvider,
           QueryClientProvider,
-          config,
-          queryClient,
+          config: cachedConfig,
+          queryClient: cachedQueryClient,
         })
         setHasWeb3(true)
         setIsInitialized(true)
@@ -200,7 +209,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           errorCount: 1,
           projectId,
           isDemo: projectId === "demo-project-id",
-          provider: "wagmi-native",
+          provider: "wagmi-optimized",
           connectionAttempts: 1,
           successfulConnections: 0,
           failedConnections: 1,

@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Leaf, Coins, Shield, Zap, ArrowRight, Star, Users, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { WalletConnectButton } from "@/components/wallet-connect-button"
+import { PuffPassLogo } from "@/components/puffpass-logo"
 
 export default function HomePage() {
   return (
@@ -19,9 +20,7 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
               <div className="space-y-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <img src="/images/puff-pass-logo.png" alt="Puff Pass" className="h-16 w-auto" />
-                </div>
+                <PuffPassLogo size="xl" showText={false} className="mb-6" />
                 <Badge variant="secondary" className="w-fit trust-badge">
                   <Leaf className="w-4 h-4 mr-2" />
                   Cannabis Payments Platform

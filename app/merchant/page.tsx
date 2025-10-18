@@ -46,6 +46,7 @@ import {
   Award,
   Eye,
 } from "lucide-react"
+import { PuffPassLogo } from "@/components/puffpass-logo"
 
 interface Product {
   id: string
@@ -746,9 +747,8 @@ export default function MerchantDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <img src="/images/puff-pass-logo.png" alt="Puff Pass" className="h-10 w-auto" />
+              <PuffPassLogo size="md" showText={false} />
               <div>
-                <h1 className="text-xl font-bold">Puff Pass</h1>
                 <Badge variant="secondary" className="bg-primary/10 text-primary">
                   Merchant Dashboard
                 </Badge>
