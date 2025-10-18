@@ -137,11 +137,10 @@ function WalletConnectButtonInner({
           message,
           userType: "consumer",
         }),
-        redirect: "manual", // Don't follow redirects automatically
+        credentials: "include", // Ensure cookies are included in request
       })
 
       console.log("[v0] Login API response status:", response.status)
-      console.log("[v0] Response type:", response.type)
 
       const contentType = response.headers.get("content-type")
       if (!contentType || !contentType.includes("application/json")) {
@@ -158,8 +157,19 @@ function WalletConnectButtonInner({
       if (data.success && data.redirectTo) {
         toast.success("Successfully logged in!")
         console.log("[v0] Navigating to:", data.redirectTo)
-        // Small delay to ensure cookie is set before navigation
-        await new Promise((resolve) => setTimeout(resolve, 100))
+
+        console.log("[v0] Waiting 500ms for cookie to be set...")
+        await new Promise((resolve) => setTimeout(resolve, 500))
+
+        const hasCookie = document.cookie.includes("session=")
+        console.log("[v0] Session cookie present:", hasCookie)
+
+        if (!hasCookie) {
+          console.warn("[v0] Session cookie not found, waiting additional 500ms...")
+          await new Promise((resolve) => setTimeout(resolve, 500))
+        }
+
+        console.log("[v0] Executing navigation to:", data.redirectTo)
         window.location.href = data.redirectTo
         return
       }
