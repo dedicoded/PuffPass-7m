@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, password, role, walletAddress, patientCertification, dcResidency, referralCode, phone } = body
+    const { name, email, password, role, walletAddress, patientCertification, dcResidency, referralCode } = body
 
     // Basic validation
     if (!name || !email || !password || !role) {
@@ -127,7 +127,6 @@ export async function POST(request: NextRequest) {
         patientCertification,
         dcResidency,
         referralCode,
-        phone, // Added phone field
       })
       console.log("[v0] User created successfully:", { id: newUser.id, email: newUser.email, role: newUser.role })
     } catch (createUserError) {
