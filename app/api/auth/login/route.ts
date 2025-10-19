@@ -10,9 +10,27 @@ export async function POST(request: NextRequest) {
   console.log("[v0] ===== LOGIN API CALLED =====")
 
   try {
-    console.log("[v0] Parsing request body...")
-    const body = await request.json()
-    console.log("[v0] Request body parsed:", {
+    const contentType = request.headers.get("content-type") || ""
+    let body: any
+
+    if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
+      console.log("[v0] Parsing form data...")
+      const formData = await request.formData()
+      body = {
+        walletAddress: formData.get("walletAddress"),
+        signature: formData.get("signature"),
+        message: formData.get("message"),
+        loginType: formData.get("loginType"),
+        userType: formData.get("userType"),
+      }
+      console.log("[v0] Form data parsed")
+    } else {
+      console.log("[v0] Parsing JSON body...")
+      body = await request.json()
+      console.log("[v0] JSON body parsed")
+    }
+
+    console.log("[v0] Request body:", {
       hasWalletAddress: !!body.walletAddress,
       hasSignature: !!body.signature,
       hasMessage: !!body.message,
@@ -199,11 +217,12 @@ export async function POST(request: NextRequest) {
       console.log("[v0] Customer user detected, redirecting to consumer dashboard")
     }
 
-    console.log("[v0] Login successful, redirecting to:", redirectTo)
+    console.log("[v0] Login successful, returning token for two-step auth")
 
     const response = NextResponse.json(
       {
         success: true,
+        token, // Return token for client to pass to /api/auth/session
         redirectTo,
         user: {
           id: user.id,
@@ -216,16 +235,7 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     )
 
-    response.cookies.set("session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
-    })
-
-    console.log("[v0] Session cookie set with name: session")
-    console.log("[v0] ===== LOGIN SUCCESSFUL - RETURNING JSON =====")
+    console.log("[v0] ===== LOGIN SUCCESSFUL - RETURNING TOKEN =====")
     return response
   } catch (error) {
     console.error("[v0] ===== LOGIN ERROR =====")

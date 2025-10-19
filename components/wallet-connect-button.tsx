@@ -125,56 +125,63 @@ function WalletConnectButtonInner({
         }
       }
 
-      console.log("[v0] Message signed, calling login API")
+      console.log("[v0] Sending authentication request...")
 
-      const response = await fetch("/api/auth/login", {
+      const loginResponse = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          loginType: "wallet",
           walletAddress,
           signature,
           message,
+          loginType: "wallet",
           userType: "consumer",
         }),
-        credentials: "include",
       })
 
-      console.log("[v0] Login API response status:", response.status)
+      console.log("[v0] Login API response status:", loginResponse.status)
 
-      const contentType = response.headers.get("content-type")
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Unexpected response format from server")
+      if (!loginResponse.ok) {
+        const errorData = await loginResponse.json()
+        throw new Error(errorData.error || "Authentication failed")
       }
 
-      const data = await response.json()
-      console.log("[v0] Login response:", data)
+      const loginData = await loginResponse.json()
+      console.log("[v0] Login successful, received token")
 
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed")
+      console.log("[v0] Setting session cookie via GET request to /api/auth/session...")
+      const sessionUrl = `/api/auth/session?token=${encodeURIComponent(loginData.token)}`
+      console.log("[v0] Session URL:", sessionUrl)
+
+      const sessionResponse = await fetch(sessionUrl, {
+        method: "GET",
+        credentials: "include", // Important: include cookies
+      })
+
+      console.log("[v0] Session API response status:", sessionResponse.status)
+
+      if (!sessionResponse.ok) {
+        const errorText = await sessionResponse.text()
+        console.error("[v0] Session API error response:", errorText)
+        throw new Error("Failed to set session cookie")
       }
 
-      if (data.success && data.redirectTo) {
-        toast.success("Successfully logged in!")
+      const sessionData = await sessionResponse.json()
+      console.log("[v0] Session API response data:", sessionData)
+      console.log("[v0] Session cookie set successfully")
 
-        console.log("[v0] Attempting navigation to:", data.redirectTo)
-        window.location.replace(data.redirectTo)
+      toast.success("Successfully logged in!")
 
-        setTimeout(() => {
-          if (window.location.pathname !== data.redirectTo) {
-            console.warn("[v0] Navigation failed - forcing redirect with href")
-            window.location.href = data.redirectTo
-          }
-        }, 500)
+      console.log("[v0] Navigating with router.push() to:", loginData.redirectTo)
+      router.push(loginData.redirectTo)
+      router.refresh() // Refresh to update server components with new session
 
-        return
-      }
-
-      throw new Error("Invalid response from server")
+      return
     } catch (err: any) {
       console.error("[v0] Wallet authentication error:", err)
       toast.error(err.message || "Failed to authenticate wallet")
-    } finally {
       setIsAuthenticating(false)
     }
   }
