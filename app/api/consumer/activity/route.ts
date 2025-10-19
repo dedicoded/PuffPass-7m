@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const activity = await getConsumerActivity(userId)
 
-    const formattedActivity = activity.map((item) => ({
+    const formattedActivity = (activity as any[]).map((item) => ({
       points: item.points,
       type: item.transaction_type,
       description: item.description,
