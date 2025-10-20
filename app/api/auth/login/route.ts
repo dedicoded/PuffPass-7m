@@ -1,55 +1,82 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getSql } from "@/lib/db"
-import { verifyAdminTrusteeWallet } from "@/lib/auth-enhanced"
+import { neon } from "@neondatabase/serverless"
 import { verifyMessage } from "viem"
 import { SignJWT } from "jose"
 
 export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
+let sql: ReturnType<typeof neon> | null = null
+
+function getSqlConnection() {
+  if (!sql) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set")
+    }
+    sql = neon(process.env.DATABASE_URL)
+  }
+  return sql
+}
+
+function isAdminWallet(walletAddress: string): boolean {
+  const trustedWallets = process.env.TRUSTED_WALLETS || ""
+  const wallets = trustedWallets.split(",").map((w) => w.trim().toLowerCase())
+  return wallets.includes(walletAddress.toLowerCase())
+}
 
 export async function POST(request: NextRequest) {
   console.log("[v0] ===== LOGIN API CALLED =====")
+  console.log("[v0] Request URL:", request.url)
+  console.log("[v0] Request method:", request.method)
 
   try {
-    const contentType = request.headers.get("content-type") || ""
     let body: any
+    const contentType = request.headers.get("content-type") || ""
 
-    if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
-      console.log("[v0] Parsing form data...")
-      const formData = await request.formData()
-      body = {
-        walletAddress: formData.get("walletAddress"),
-        signature: formData.get("signature"),
-        message: formData.get("message"),
-        loginType: formData.get("loginType"),
-        userType: formData.get("userType"),
+    console.log("[v0] Content-Type:", contentType)
+
+    try {
+      if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
+        console.log("[v0] Parsing form data...")
+        const formData = await request.formData()
+        body = {
+          walletAddress: formData.get("walletAddress"),
+          signature: formData.get("signature"),
+          message: formData.get("message"),
+        }
+      } else {
+        console.log("[v0] Parsing JSON body...")
+        body = await request.json()
       }
-      console.log("[v0] Form data parsed")
-    } else {
-      console.log("[v0] Parsing JSON body...")
-      body = await request.json()
-      console.log("[v0] JSON body parsed")
+      console.log("[v0] Body parsed successfully")
+    } catch (parseError) {
+      console.error("[v0] Body parsing error:", parseError)
+      return NextResponse.json({ success: false, error: "Invalid request body" }, { status: 400 })
     }
-
-    console.log("[v0] Request body:", {
-      hasWalletAddress: !!body.walletAddress,
-      hasSignature: !!body.signature,
-      hasMessage: !!body.message,
-    })
 
     const { walletAddress, signature, message } = body
 
     if (!walletAddress || !signature || !message) {
       console.log("[v0] Missing required fields")
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json(
+        { success: false, error: "Missing required fields: walletAddress, signature, message" },
+        { status: 400 },
+      )
     }
 
-    console.log("[v0] Verifying signature...")
-    const isValid = await verifyMessage({
-      address: walletAddress as `0x${string}`,
-      message,
-      signature: signature as `0x${string}`,
-    })
-    console.log("[v0] Signature verification result:", isValid)
+    console.log("[v0] Verifying signature for wallet:", walletAddress)
+    let isValid = false
+    try {
+      isValid = await verifyMessage({
+        address: walletAddress as `0x${string}`,
+        message,
+        signature: signature as `0x${string}`,
+      })
+      console.log("[v0] Signature verification result:", isValid)
+    } catch (verifyError) {
+      console.error("[v0] Signature verification error:", verifyError)
+      return NextResponse.json({ success: false, error: "Signature verification failed" }, { status: 401 })
+    }
 
     if (!isValid) {
       console.log("[v0] Invalid signature")
@@ -57,9 +84,9 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[v0] Getting database connection...")
-    let sql
+    let sqlClient
     try {
-      sql = await getSql()
+      sqlClient = getSqlConnection()
       console.log("[v0] Database connection established")
     } catch (dbError) {
       console.error("[v0] Database connection error:", dbError)
@@ -67,7 +94,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: "Database connection failed",
-          details: dbError instanceof Error ? dbError.message : "Unknown database error",
+          details: dbError instanceof Error ? dbError.message : "Unknown error",
         },
         { status: 500 },
       )
@@ -76,20 +103,23 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Looking up user by wallet address...")
     let users
     try {
-      users = await sql`
-        SELECT id, email, name, role, wallet_address
-        FROM users
-        WHERE LOWER(wallet_address) = LOWER(${walletAddress})
-        LIMIT 1
-      `
-      console.log("[v0] User lookup result:", users.length > 0 ? "Found" : "Not found")
+      users = await Promise.race([
+        sqlClient`
+          SELECT id, email, name, role, wallet_address
+          FROM users
+          WHERE LOWER(wallet_address) = LOWER(${walletAddress})
+          LIMIT 1
+        `,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Database query timeout")), 10000)),
+      ])
+      console.log("[v0] User lookup completed:", users.length > 0 ? "Found" : "Not found")
     } catch (queryError) {
-      console.error("[v0] User lookup query error:", queryError)
+      console.error("[v0] User lookup error:", queryError)
       return NextResponse.json(
         {
           success: false,
           error: "Database query failed",
-          details: queryError instanceof Error ? queryError.message : "Unknown query error",
+          details: queryError instanceof Error ? queryError.message : "Unknown error",
         },
         { status: 500 },
       )
@@ -98,16 +128,14 @@ export async function POST(request: NextRequest) {
     let user = users[0]
 
     if (!user) {
-      console.log("[v0] Checking if wallet is admin trustee...")
-      const isAdminTrustee = await verifyAdminTrusteeWallet(walletAddress)
-      const userRole = isAdminTrustee ? "admin" : "customer"
-      console.log("[v0] Wallet role determined:", userRole)
-
+      console.log("[v0] User not found, creating new user...")
+      const isAdmin = isAdminWallet(walletAddress)
+      const userRole = isAdmin ? "admin" : "customer"
       const defaultName = `Wallet_${walletAddress.substring(2, 10)}`
 
-      console.log("[v0] Creating new user with role:", userRole)
+      console.log("[v0] Creating user with role:", userRole)
       try {
-        const newUsers = await sql`
+        const newUsers = await sqlClient`
           INSERT INTO users (
             name,
             email,
@@ -126,103 +154,80 @@ export async function POST(request: NextRequest) {
           RETURNING id, email, name, role, wallet_address
         `
         user = newUsers[0]
-        console.log("[v0] New user created with ID:", user.id, "and role:", user.role)
+        console.log("[v0] User created successfully:", user.id)
       } catch (createError) {
         console.error("[v0] User creation error:", createError)
         return NextResponse.json(
           {
             success: false,
             error: "Failed to create user",
-            details: createError instanceof Error ? createError.message : "Unknown creation error",
+            details: createError instanceof Error ? createError.message : "Unknown error",
           },
           { status: 500 },
         )
       }
     } else {
-      console.log("[v0] Checking if existing user should be admin...")
-      const isAdminTrustee = await verifyAdminTrusteeWallet(walletAddress)
-      console.log("[v0] Admin trustee check result:", isAdminTrustee)
-
-      if (isAdminTrustee && user.role !== "admin") {
-        console.log("[v0] Upgrading user role from", user.role, "to admin")
+      console.log("[v0] Existing user found, checking role...")
+      const isAdmin = isAdminWallet(walletAddress)
+      if (isAdmin && user.role !== "admin") {
+        console.log("[v0] Upgrading user to admin role")
         try {
-          const updatedUsers = await sql`
+          const updatedUsers = await sqlClient`
             UPDATE users
             SET role = 'admin'
             WHERE id = ${user.id}
             RETURNING id, email, name, role, wallet_address
           `
           user = updatedUsers[0]
-          console.log("[v0] User role updated to:", user.role)
+          console.log("[v0] User role updated to admin")
         } catch (updateError) {
           console.error("[v0] Role update error:", updateError)
-          // Continue with existing role if update fails
-          console.log("[v0] Continuing with existing role:", user.role)
+          // Continue with existing role
         }
       }
     }
 
-    console.log("[v0] Logging successful authentication...")
-    try {
-      await sql`
-        INSERT INTO age_verification_logs (
-          user_id,
-          route,
-          verified,
-          action,
-          audit_event,
-          created_at
-        ) VALUES (
-          ${user.id},
-          '/api/auth/login',
-          true,
-          'WALLET_LOGIN_SUCCESS',
-          ${JSON.stringify({
-            walletAddress,
-            role: user.role,
-            timestamp: new Date().toISOString(),
-          })}::jsonb,
-          NOW()
-        )
-      `
-    } catch (logError) {
-      console.error("[v0] Audit log error:", logError)
-      // Continue even if logging fails
-    }
-
-    console.log("[v0] Creating session...")
+    console.log("[v0] Creating session token...")
     const secret = new TextEncoder().encode(
       process.env.JWT_SECRET || process.env.SESSION_SECRET || "fallback-secret-for-dev",
     )
-    const token = await new SignJWT({
-      userId: user.id,
-      walletAddress: user.wallet_address,
-      role: user.role,
-    })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("7d")
-      .sign(secret)
 
-    console.log("[v0] Session token created")
+    let token
+    try {
+      token = await new SignJWT({
+        userId: user.id,
+        walletAddress: user.wallet_address,
+        role: user.role,
+      })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("7d")
+        .sign(secret)
+      console.log("[v0] Token created successfully")
+    } catch (tokenError) {
+      console.error("[v0] Token creation error:", tokenError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to create session token",
+        },
+        { status: 500 },
+      )
+    }
 
     let redirectTo = "/consumer"
     if (user.role === "admin") {
       redirectTo = "/admin"
-      console.log("[v0] Admin user detected, redirecting to admin dashboard")
     } else if (user.role === "merchant") {
       redirectTo = "/merchant"
-      console.log("[v0] Merchant user detected, redirecting to merchant dashboard")
-    } else {
-      console.log("[v0] Customer user detected, redirecting to consumer dashboard")
     }
 
-    console.log("[v0] Login successful, returning token for two-step auth")
+    console.log("[v0] Login successful, redirecting to:", redirectTo)
 
     const response = NextResponse.json(
       {
         success: true,
-        token, // Return token for client to pass to /api/auth/session
+        token,
         redirectTo,
         user: {
           id: user.id,
@@ -235,19 +240,19 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     )
 
-    console.log("[v0] ===== LOGIN SUCCESSFUL - RETURNING TOKEN =====")
+    console.log("[v0] ===== LOGIN SUCCESSFUL =====")
     return response
   } catch (error) {
     console.error("[v0] ===== LOGIN ERROR =====")
     console.error("[v0] Error type:", error?.constructor?.name)
     console.error("[v0] Error message:", error instanceof Error ? error.message : String(error))
-    console.error("[v0] Error stack:", error instanceof Error ? error.stack : "No stack")
+    console.error("[v0] Error stack:", error instanceof Error ? error.stack : "No stack trace")
 
     return NextResponse.json(
       {
         success: false,
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: "Authentication failed",
+        details: error instanceof Error ? error.message : "Unknown error occurred",
       },
       { status: 500 },
     )
