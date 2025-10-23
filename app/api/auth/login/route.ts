@@ -224,23 +224,22 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Login successful, redirecting to:", redirectTo)
 
-    const response = NextResponse.json(
-      {
-        success: true,
-        token,
-        redirectTo,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          walletAddress: user.wallet_address,
-        },
-      },
-      { status: 200 },
-    )
+    console.log("[v0] Setting session cookie via server-side call...")
 
-    console.log("[v0] ===== LOGIN SUCCESSFUL =====")
+    // Create the session cookie response
+    const response = NextResponse.redirect(new URL(redirectTo, request.url), 307)
+
+    // Set the session cookie directly in the response
+    response.cookies.set("session", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/",
+    })
+
+    console.log("[v0] Session cookie set, redirecting to:", redirectTo)
+    console.log("[v0] ===== LOGIN SUCCESSFUL WITH REDIRECT =====")
     return response
   } catch (error) {
     console.error("[v0] ===== LOGIN ERROR =====")

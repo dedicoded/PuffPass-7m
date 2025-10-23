@@ -127,7 +127,7 @@ function WalletConnectButtonInner({
 
       console.log("[v0] Sending authentication request...")
 
-      const loginResponse = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -136,47 +136,41 @@ function WalletConnectButtonInner({
           walletAddress,
           signature,
           message,
-          loginType: "wallet",
-          userType: "consumer",
         }),
+        redirect: "manual", // Don't follow redirects automatically
+        credentials: "include", // Include cookies
       })
 
-      console.log("[v0] Login API response status:", loginResponse.status)
+      console.log("[v0] Login API response status:", response.status)
 
-      if (!loginResponse.ok) {
-        const errorData = await loginResponse.json()
-        throw new Error(errorData.error || "Authentication failed")
+      // Handle 307 redirect
+      if (response.status === 307) {
+        const redirectUrl = response.headers.get("Location")
+        console.log("[v0] Got redirect to:", redirectUrl)
+
+        if (redirectUrl) {
+          console.log("[v0] Performing full page navigation to:", redirectUrl)
+          // Use window.location.href for full page navigation with cookies
+          window.location.href = redirectUrl
+          return
+        }
       }
 
-      const loginData = await loginResponse.json()
-      console.log("[v0] Login successful, received token")
+      // Handle JSON response (fallback)
+      const data = await response.json()
 
-      console.log("[v0] Setting session cookie via GET request to /api/auth/session...")
-      const sessionUrl = `/api/auth/session?token=${encodeURIComponent(loginData.token)}`
-      console.log("[v0] Session URL:", sessionUrl)
-
-      const sessionResponse = await fetch(sessionUrl, {
-        method: "GET",
-        credentials: "include", // Important: include cookies
-      })
-
-      console.log("[v0] Session API response status:", sessionResponse.status)
-
-      if (!sessionResponse.ok) {
-        const errorText = await sessionResponse.text()
-        console.error("[v0] Session API error response:", errorText)
-        throw new Error("Failed to set session cookie")
+      if (!response.ok) {
+        throw new Error(data.error || "Authentication failed")
       }
 
-      const sessionData = await sessionResponse.json()
-      console.log("[v0] Session API response data:", sessionData)
-      console.log("[v0] Session cookie set successfully")
+      console.log("[v0] Login successful:", data)
+      toast.success("Wallet authenticated successfully!")
 
-      toast.success("Successfully logged in!")
-
-      console.log("[v0] Navigating with router.push() to:", loginData.redirectTo)
-      router.push(loginData.redirectTo)
-      router.refresh() // Refresh to update server components with new session
+      // Navigate based on role
+      if (data.redirectTo) {
+        console.log("[v0] Redirecting to:", data.redirectTo)
+        window.location.href = data.redirectTo
+      }
 
       return
     } catch (err: any) {

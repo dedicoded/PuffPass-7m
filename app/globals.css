@@ -4,31 +4,31 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(0.98 0 0);
-  --card: rgb(117, 2, 60);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: rgb(60, 3, 3);
-  --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.98 0 0);
-  --primary-foreground: oklch(0.08 0 0);
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.15 0 0);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: rgb(30, 58, 2);
-  --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.62 0.25 29);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.18 0 0);
-  --input: oklch(0.18 0 0);
-  --ring: oklch(0.65 0 0);
-  --chart-1: oklch(0.7 0.25 142);
-  --chart-2: oklch(0.7 0.25 258);
-  --chart-3: oklch(0.65 0.25 12);
-  --chart-4: oklch(0.8 0.25 197);
-  --chart-5: oklch(0.75 0.25 67);
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 240 5.9% 10%;
   --radius: 0.5rem;
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -37,40 +37,33 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-
-  /* Deployment specific colors */
-  --deployment-success: oklch(0.7 0.25 142);
-  --deployment-warning: oklch(0.8 0.25 67);
-  --deployment-error: oklch(0.62 0.25 29);
-  --deployment-pending: oklch(0.7 0.25 258);
-  --deployment-ready: oklch(0.7 0.25 142);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 240 5.9% 10%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 240 4.9% 83.9%;
+  --chart-1: 220 70% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -79,20 +72,10 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
-
-  /* Deployment specific dark colors */
-  --deployment-success: oklch(0.7 0.25 142);
-  --deployment-warning: oklch(0.8 0.25 67);
-  --deployment-error: oklch(0.62 0.25 29);
-  --deployment-pending: oklch(0.7 0.25 258);
-  --deployment-ready: oklch(0.7 0.25 142);
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-
-  /* Professional Fintech Color Palette */
+  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -129,57 +112,6 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-
-  /* Treasury-specific colors */
-  --color-treasury-primary: 14 116 144;
-  --color-treasury-secondary: 6 182 212;
-  --color-treasury-success: 5 150 105;
-  --color-treasury-warning: 217 119 6;
-  --color-treasury-danger: 220 38 38;
-
-  /* Added animation keyframes for zoom and fade effects */
-  --animate-in: fadeIn 200ms ease-out;
-  --animate-out: fadeOut 200ms ease-in;
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes fadeOut {
-    from {
-      opacity: 1;
-    }
-    to {
-      opacity: 0;
-    }
-  }
-
-  @keyframes zoomIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  @keyframes zoomOut {
-    from {
-      opacity: 1;
-      transform: scale(1);
-    }
-    to {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-  }
 }
 
 @layer base {
@@ -189,181 +121,4 @@
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* Custom treasury styles */
-.treasury-gradient {
-  background: linear-gradient(135deg, rgb(14 116 144) 0%, rgb(6 182 212) 100%);
-}
-
-.treasury-card {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(226, 232, 240, 0.5);
-}
-
-.dark .treasury-card {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(51, 65, 85, 0.5);
-}
-
-/* Security dashboard styles following Vercel observability design */
-.security-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.6);
-  transition: all 0.2s ease-in-out;
-}
-
-.security-card:hover {
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
-}
-
-.dark .security-card {
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(51, 65, 85, 0.6);
-}
-
-.dark .security-card:hover {
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-}
-
-/* Security metric cards with accent borders */
-.security-card.border-l-4 {
-  border-left-width: 4px;
-}
-
-/* Security status indicators */
-.status-healthy {
-  @apply bg-green-50 text-green-700 border-green-200;
-}
-
-.status-warning {
-  @apply bg-yellow-50 text-yellow-700 border-yellow-200;
-}
-
-.status-error {
-  @apply bg-red-50 text-red-700 border-red-200;
-}
-
-.dark .status-healthy {
-  @apply bg-green-900/20 text-green-400 border-green-800;
-}
-
-.dark .status-warning {
-  @apply bg-yellow-900/20 text-yellow-400 border-yellow-800;
-}
-
-.dark .status-error {
-  @apply bg-red-900/20 text-red-400 border-red-800;
-}
-
-/* Deployment dashboard specific styles */
-.deployment-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  transition: all 0.2s ease-in-out;
-}
-
-.deployment-card:hover {
-  border-color: var(--muted-foreground);
-}
-
-.deployment-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.deployment-status.success {
-  color: var(--deployment-success);
-}
-
-.deployment-status.warning {
-  color: var(--deployment-warning);
-}
-
-.deployment-status.error {
-  color: var(--deployment-error);
-}
-
-.deployment-status.pending {
-  color: var(--deployment-pending);
-}
-
-.deployment-status.ready {
-  color: var(--deployment-ready);
-}
-
-.deployment-metric-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  transition: all 0.2s ease-in-out;
-}
-
-.deployment-metric-card:hover {
-  border-color: var(--muted-foreground);
-  transform: translateY(-1px);
-}
-
-.deployment-chart {
-  background: var(--muted);
-  border-radius: calc(var(--radius) - 2px);
-  padding: 1rem;
-}
-
-.deployment-sidebar {
-  background: var(--card);
-  border-right: 1px solid var(--border);
-}
-
-.deployment-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: calc(var(--radius) - 2px);
-  color: var(--muted-foreground);
-  text-decoration: none;
-  transition: all 0.2s ease-in-out;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.deployment-nav-item:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
-.deployment-nav-item.active {
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-
-.deployment-header {
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-  padding: 1rem 2rem;
-}
-
-.deployment-filter {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.5rem 1rem;
-  color: var(--foreground);
-  font-size: 0.875rem;
-}
-
-.deployment-filter:focus {
-  outline: none;
-  border-color: var(--ring);
-  box-shadow: 0 0 0 2px var(--ring);
 }

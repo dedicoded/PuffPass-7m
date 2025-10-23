@@ -7,6 +7,7 @@ const AGE_VERIFICATION_ALLOWLIST = [
   "/login",
   "/register",
   "/onboard", // Added /onboard to allow post-registration flow
+  "/admin", // Admin routes bypass age verification
   "/api",
   "/_next",
   "/_vercel",
