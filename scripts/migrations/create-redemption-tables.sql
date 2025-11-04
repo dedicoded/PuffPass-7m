@@ -1,7 +1,8 @@
 -- Create PUFF redemption tracking table
+-- Changed user_wallet to user_id to match existing schema
 CREATE TABLE IF NOT EXISTS puff_redemptions (
-  id SERIAL PRIMARY KEY,
-  user_wallet VARCHAR(255) NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL, -- Changed from user_wallet to user_id
   puff_amount DECIMAL(20, 2) NOT NULL,
   usdc_amount DECIMAL(10, 6) NOT NULL,
   tx_hash VARCHAR(255),
@@ -11,7 +12,7 @@ CREATE TABLE IF NOT EXISTS puff_redemptions (
 );
 
 -- Create indexes
-CREATE INDEX IF NOT EXISTS idx_puff_redemptions_user ON puff_redemptions(user_wallet);
+CREATE INDEX IF NOT EXISTS idx_puff_redemptions_user ON puff_redemptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_puff_redemptions_status ON puff_redemptions(status);
 CREATE INDEX IF NOT EXISTS idx_puff_redemptions_created ON puff_redemptions(created_at);
 
@@ -35,4 +36,4 @@ ADD COLUMN IF NOT EXISTS redemption_reserve DECIMAL(10, 2) DEFAULT 0;
 -- Initialize redemption reserve (10% of vault balance)
 UPDATE puff_vault 
 SET redemption_reserve = amount * 0.10 
-WHERE source = 'system_reserve';
+WHERE source = 'system_reserve' AND redemption_reserve IS NULL;

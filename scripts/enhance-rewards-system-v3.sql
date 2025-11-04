@@ -137,5 +137,9 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Drop trigger if exists before creating
+DROP TRIGGER IF EXISTS update_rewards_catalog_updated_at ON rewards_catalog;
+DROP TRIGGER IF EXISTS update_puff_vault_balances_updated_at ON puff_vault_balances;
+
 CREATE TRIGGER update_rewards_catalog_updated_at BEFORE UPDATE ON rewards_catalog FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_puff_vault_balances_updated_at BEFORE UPDATE ON puff_vault_balances FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

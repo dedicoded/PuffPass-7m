@@ -1,9 +1,7 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
-import { cybridConfig } from "@/lib/cybrid-config"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
@@ -20,23 +18,39 @@ export function CybridProvider({ children }: CybridProviderProps) {
       try {
         console.log("[v0] Initializing Cybrid SDK...")
 
-        // Get customer bearer token from API
         const response = await fetch("/api/cybrid/auth/token")
 
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to get Cybrid auth token")
+          const errorData = await response.json().catch(() => ({}))
+          console.error("[v0] Cybrid auth failed:", errorData)
+
+          if (response.status === 401) {
+            throw new Error(
+              "Invalid Cybrid credentials. The credentials are either expired or incorrect.\n\n" +
+                "To fix this:\n" +
+                "1. Get valid sandbox credentials from Cybrid dashboard (https://app.cybrid.xyz)\n" +
+                "2. Set CYBRID_CLIENT_ID and CYBRID_CLIENT_SECRET as server-side environment variables\n" +
+                "3. Redeploy your application\n\n" +
+                "Note: The fallback credentials in cybrid-config.ts are invalid.",
+            )
+          }
+
+          if (errorData.error === "server_misconfig") {
+            throw new Error(
+              "Cybrid is not configured. Please set CYBRID_CLIENT_ID and CYBRID_CLIENT_SECRET as server-side environment variables in your deployment settings.",
+            )
+          }
+
+          throw new Error(errorData.error_description || errorData.error || "Failed to authenticate with Cybrid")
         }
 
-        const { token } = await response.json()
+        const { token, bankGuid, environment } = await response.json()
 
-        // Initialize Cybrid SDK with customer token
-        if (typeof window !== "undefined" && window.customElements) {
-          // Set global Cybrid configuration
+        if (typeof window !== "undefined") {
           ;(window as any).cybridConfig = {
             bearer: token,
-            environment: cybridConfig.environment,
-            bank: cybridConfig.bankGuid,
+            environment: environment || "sandbox",
+            bank: bankGuid,
           }
 
           console.log("[v0] Cybrid SDK initialized successfully")
@@ -44,7 +58,7 @@ export function CybridProvider({ children }: CybridProviderProps) {
         }
       } catch (err) {
         console.error("[v0] Failed to initialize Cybrid SDK:", err)
-        setError(err instanceof Error ? err.message : "Unknown error")
+        setError(err instanceof Error ? err.message : "Unknown error occurred")
       }
     }
 
@@ -57,18 +71,20 @@ export function CybridProvider({ children }: CybridProviderProps) {
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Cybrid Configuration Error</AlertTitle>
         <AlertDescription className="mt-2">
-          <p className="mb-2">{error}</p>
-          {error.includes("environment variables") && (
-            <div className="text-sm mt-2 space-y-1">
-              <p className="font-semibold">To fix this:</p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Go to your Vercel project settings</li>
-                <li>Navigate to Environment Variables</li>
-                <li>Add CYBRID_CLIENT_SECRET with your Cybrid API secret</li>
-                <li>Redeploy your application</li>
-              </ol>
-            </div>
-          )}
+          <pre className="whitespace-pre-wrap text-sm mb-2">{error}</pre>
+          <div className="text-sm mt-4 space-y-1 border-t pt-2">
+            <p className="font-semibold">Quick Setup Guide:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Go to your deployment settings (e.g., Vercel Project Settings)</li>
+              <li>Navigate to Environment Variables</li>
+              <li>Add these server-side variables (do NOT use NEXT_PUBLIC_ prefix):</li>
+              <ul className="list-disc list-inside ml-4 mt-1">
+                <li>CYBRID_CLIENT_ID</li>
+                <li>CYBRID_CLIENT_SECRET</li>
+              </ul>
+              <li>Redeploy your application</li>
+            </ol>
+          </div>
         </AlertDescription>
       </Alert>
     )

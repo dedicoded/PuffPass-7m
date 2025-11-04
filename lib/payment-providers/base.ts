@@ -13,6 +13,7 @@ export interface PaymentParams {
   currency: string
   symbol?: string // Crypto symbol (e.g., "BTC-USD", "ETH-USD")
   walletAddress?: string
+  fees?: number // Added fees parameter for payment processing
   metadata?: Record<string, any>
 }
 
@@ -22,7 +23,7 @@ export interface PaymentResult {
   status: "pending" | "confirmed" | "failed" | "settling"
   mode: "test" | "live"
   provider: string
-  details?: any
+  details?: Record<string, any> // Changed from 'any' to 'Record<string, any>' for better type safety
   error?: string
 }
 

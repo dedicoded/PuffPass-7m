@@ -3,11 +3,12 @@ import type { NextRequest } from "next/server"
 import { jwtVerify } from "jose"
 
 const AGE_VERIFICATION_ALLOWLIST = [
+  "/",
   "/age-verification",
   "/login",
   "/register",
-  "/onboard", // Added /onboard to allow post-registration flow
-  "/admin", // Admin routes bypass age verification
+  "/onboard",
+  "/admin",
   "/api",
   "/_next",
   "/_vercel",
@@ -36,14 +37,18 @@ export async function middleware(request: NextRequest) {
 
   console.log("[v0] Middleware processing:", pathname)
 
-  // Create response
   const response = NextResponse.next()
 
   response.headers.set("X-Frame-Options", "DENY")
   response.headers.set("X-Content-Type-Options", "nosniff")
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
   response.headers.set("X-XSS-Protection", "1; mode=block")
-  response.headers.set("X-Cannabis-Platform", "MyCora")
+  response.headers.set("X-Cannabis-Platform", "PuffPass")
+  response.headers.set(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';",
+  )
+  response.headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=(self)")
 
   const ip = request.ip ?? request.headers.get("x-forwarded-for") ?? "0.0.0.0"
   const userAgent = request.headers.get("user-agent") ?? "unknown"
@@ -106,14 +111,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 }

@@ -1,87 +1,116 @@
 import { NextResponse } from "next/server"
 import { cybridConfig } from "@/lib/cybrid-config"
 
+export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
 // Generate customer bearer token for Cybrid SDK
 export async function GET() {
+  const clientId = process.env.CYBRID_CLIENT_ID || cybridConfig.clientId
+  const clientSecret = process.env.CYBRID_CLIENT_SECRET || cybridConfig.clientSecret
+  const authUrl = process.env.CYBRID_AUTH_URL || cybridConfig.authUrl
+
+  console.log("[v0] Cybrid auth diagnostics:", {
+    envVarsPresent: {
+      clientId: !!process.env.CYBRID_CLIENT_ID,
+      clientSecret: !!process.env.CYBRID_CLIENT_SECRET,
+      authUrl: !!process.env.CYBRID_AUTH_URL,
+    },
+    credentialSuffixes: {
+      clientIdSuffix: clientId?.slice(-4) || "none",
+      clientSecretSuffix: clientSecret?.slice(-4) || "none",
+    },
+    credentialLengths: {
+      clientIdLength: clientId?.length || 0,
+      clientSecretLength: clientSecret?.length || 0,
+    },
+    runtime: process.env.NEXT_RUNTIME || "nodejs",
+    nodeVersion: process.versions?.node || "unknown",
+    usingFallback: !process.env.CYBRID_CLIENT_ID || !process.env.CYBRID_CLIENT_SECRET,
+    authUrl: authUrl,
+  })
+
+  if (!clientId || !clientSecret) {
+    console.error("[v0] Missing Cybrid credentials")
+    return NextResponse.json(
+      {
+        error: "server_misconfig",
+        error_description:
+          "Missing CYBRID_CLIENT_ID or CYBRID_CLIENT_SECRET. These must be set as server-side environment variables.",
+      },
+      { status: 500 },
+    )
+  }
+
   try {
-    console.log("[v0] Generating Cybrid customer bearer token...")
+    const trimmedClientId = clientId.trim()
+    const trimmedClientSecret = clientSecret.trim()
 
-    if (!cybridConfig.clientId) {
-      console.error("[v0] CYBRID_CLIENT_ID is not set")
-      return NextResponse.json(
-        { error: "Cybrid Client ID is not configured. Please add CYBRID_CLIENT_ID to your environment variables." },
-        { status: 500 },
-      )
-    }
+    const tokenUrl = `${authUrl}/oauth/token`
 
-    if (!cybridConfig.clientSecret) {
-      console.error("[v0] CYBRID_CLIENT_SECRET is not set")
-      return NextResponse.json(
-        {
-          error:
-            "Cybrid Client Secret is not configured. Please add CYBRID_CLIENT_SECRET to your environment variables in Vercel.",
-        },
-        { status: 500 },
-      )
-    }
+    console.log("[v0] Attempting client_secret_basic authentication...")
+    const basic = Buffer.from(`${trimmedClientId}:${trimmedClientSecret}`, "ascii").toString("base64")
 
-    console.log("[v0] Using Client ID:", cybridConfig.clientId?.substring(0, 10) + "...")
-    console.log("[v0] Client ID length:", cybridConfig.clientId?.length)
-    console.log("[v0] Client Secret length:", cybridConfig.clientSecret?.length)
-    console.log("[v0] Client Secret preview:", cybridConfig.clientSecret?.substring(0, 10) + "...")
-    console.log("[v0] Auth URL:", `${cybridConfig.authUrl}/oauth/token`)
-
-    const auth = Buffer.from(`${cybridConfig.clientId}:${cybridConfig.clientSecret}`).toString("base64")
-    console.log("[v0] Using Basic Auth (credentials encoded)")
-    console.log("[v0] Base64 auth preview:", auth.substring(0, 20) + "...")
-
-    // Get organization bearer token using Basic Auth
-    const authResponse = await fetch(`${cybridConfig.authUrl}/oauth/token`, {
+    let response = await fetch(tokenUrl, {
       method: "POST",
       headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
+        Authorization: `Basic ${basic}`,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({
+      body: new URLSearchParams({
         grant_type: "client_credentials",
-        scope: "banks:read customers:read customers:write accounts:read quotes:execute trades:execute",
-      }),
+      }).toString(),
+      cache: "no-store",
     })
 
-    if (!authResponse.ok) {
-      const errorText = await authResponse.text()
-      console.error("[v0] Cybrid auth failed:", errorText)
-      console.error("[v0] Response status:", authResponse.status)
-      console.error("[v0] Response headers:", Object.fromEntries(authResponse.headers.entries()))
+    if (response.status === 401) {
+      console.log("[v0] client_secret_basic failed with 401, retrying with client_secret_post...")
 
-      if (authResponse.status === 401) {
-        return NextResponse.json(
-          {
-            error:
-              "Cybrid authentication failed. Please verify your CYBRID_CLIENT_ID and CYBRID_CLIENT_SECRET are correct.",
-          },
-          { status: 401 },
-        )
-      }
-
-      throw new Error(`Cybrid authentication failed: ${authResponse.status} - ${errorText}`)
+      response = await fetch(tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: trimmedClientId,
+          client_secret: trimmedClientSecret,
+        }).toString(),
+        cache: "no-store",
+      })
     }
 
-    const { access_token } = await authResponse.json()
+    const responseText = await response.text()
 
-    console.log("[v0] Cybrid customer bearer token generated successfully")
+    if (!response.ok) {
+      console.error("[v0] Cybrid OAuth failed:", response.status, responseText)
+      console.error("[v0] Both auth methods failed. This indicates invalid credentials.")
+      console.error(
+        "[v0] If using fallback credentials, they may be expired. Set CYBRID_CLIENT_ID and CYBRID_CLIENT_SECRET in your deployment environment.",
+      )
+
+      // Forward the error response from Cybrid
+      return new NextResponse(responseText || JSON.stringify({ error: "oauth_failed" }), {
+        status: response.status,
+        headers: { "content-type": response.headers.get("content-type") || "application/json" },
+      })
+    }
+
+    const data = JSON.parse(responseText)
+    console.log("[v0] Cybrid OAuth token obtained successfully")
 
     return NextResponse.json({
-      token: access_token,
-      bankGuid: cybridConfig.bankGuid,
-      environment: cybridConfig.environment,
+      token: data.access_token,
+      bankGuid: process.env.CYBRID_BANK_GUID || cybridConfig.bankGuid,
+      environment: process.env.CYBRID_ENVIRONMENT || cybridConfig.environment,
     })
   } catch (error) {
-    console.error("[v0] Error generating Cybrid token:", error)
+    console.error("[v0] Error in Cybrid OAuth flow:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to generate Cybrid token" },
+      {
+        error: "internal_error",
+        error_description: error instanceof Error ? error.message : "Failed to obtain Cybrid token",
+      },
       { status: 500 },
     )
   }

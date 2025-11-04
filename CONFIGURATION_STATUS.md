@@ -107,4 +107,4 @@ Your provided variables → System variables:
 - All other variables are correctly named and configured
 \`\`\`
 
-```ts file="" isHidden
+\`\`\`ts file="" isHidden

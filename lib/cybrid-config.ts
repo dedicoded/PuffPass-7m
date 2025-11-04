@@ -1,8 +1,8 @@
 // Cybrid SDK Configuration
 export const cybridConfig = {
   // Organization and Bank GUIDs
-  organizationGuid: process.env.NEXT_PUBLIC_CYBRID_ORGANIZATION_GUID || "059526698b52ef3827e417f794da7bfe",
-  bankGuid: process.env.NEXT_PUBLIC_CYBRID_BANK_GUID || "2a28078007155bdecf9f237834f3decd",
+  organizationGuid: process.env.NEXT_PUBLIC_CYBRID_ORGANIZATION_GUID || "553f2499a0faf6200e62dbec8791d6aa",
+  bankGuid: process.env.NEXT_PUBLIC_CYBRID_BANK_GUID || "5115de8d1da4f5754dc9893390f5e3ae",
 
   // Account GUIDs
   accounts: {
@@ -18,8 +18,8 @@ export const cybridConfig = {
 
   // Client credentials (server-side only)
   // WARNING: These are SANDBOX credentials. For production, set these in Vercel environment variables.
-  clientId: process.env.CYBRID_CLIENT_ID || "8CXVVa1a6m0c0L-8CeQ186RBOQX0NMlY4OrWa1nsD9",
-  clientSecret: process.env.CYBRID_CLIENT_SECRET || "JkzOlgsl4GOAPF5I6OOg-5T2DCkq4uBmlUyYny_0A_M",
+  clientId: process.env.CYBRID_CLIENT_ID || "P4q17wRMfSlfdlQLszhkEEmZU5w7zHKCNx1lmQWpbhI",
+  clientSecret: process.env.CYBRID_CLIENT_SECRET || "SFyBNkYmw5hWgP_YLRflDq4dQQL6Q6j01zktfDa_MY",
 }
 
 export type CybridConfig = typeof cybridConfig

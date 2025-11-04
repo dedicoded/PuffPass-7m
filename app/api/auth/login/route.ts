@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[v0] Looking up user by wallet address...")
-    let users
+    let users: any
     try {
       users = await Promise.race([
         sqlClient`

@@ -806,7 +806,7 @@ export default function MerchantDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    ${merchantContributions?.vault_contribution?.toFixed(2) || "0.00"}
+                    ${Number(merchantContributions?.vault_contribution || 0).toFixed(2)}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {merchantContributions?.fee_free_payments_enabled || 0} payments enabled

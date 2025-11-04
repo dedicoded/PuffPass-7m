@@ -5,6 +5,8 @@ import { cookies } from "next/headers"
 import type { NextResponse } from "next/server"
 import type { User } from "./db"
 import { getSql } from "./db"
+import { verifyAuthenticationResponse, verifyRegistrationResponse } from "@simplewebauthn/server"
+import type { VerifiedAuthenticationResponse, VerifiedRegistrationResponse } from "@simplewebauthn/server"
 
 // Enhanced authentication types
 export interface AuthSession extends User {
@@ -323,16 +325,36 @@ export async function authenticateWithPasskey(credentialId: string, signature: s
 
     const passkeyData = result[0]
 
-    // TODO: Implement WebAuthn signature verification
-    // For now, we'll assume the signature is valid
-    console.log("[v0] Passkey authentication successful for user:", passkeyData.user_id)
+    try {
+      const verification: VerifiedAuthenticationResponse = await verifyAuthenticationResponse({
+        response: JSON.parse(signature),
+        expectedChallenge: passkeyData.challenge || "",
+        expectedOrigin: origin,
+        expectedRPID: rpID,
+        authenticator: {
+          credentialID: Buffer.from(credentialId, "base64"),
+          credentialPublicKey: Buffer.from(passkeyData.public_key, "base64"),
+          counter: passkeyData.counter,
+        },
+      })
 
-    // Update counter to prevent replay attacks
-    await sql`
-      UPDATE user_passkeys 
-      SET counter = counter + 1, last_used = NOW()
-      WHERE credential_id = ${credentialId}
-    `
+      if (!verification.verified) {
+        console.error("[v0] Passkey signature verification failed")
+        return null
+      }
+
+      console.log("[v0] Passkey authentication successful for user:", passkeyData.user_id)
+
+      // Update counter to prevent replay attacks
+      await sql`
+        UPDATE user_passkeys 
+        SET counter = ${verification.authenticationInfo.newCounter}, last_used = NOW()
+        WHERE credential_id = ${credentialId}
+      `
+    } catch (verifyError) {
+      console.error("[v0] WebAuthn verification error:", verifyError)
+      return null
+    }
 
     return {
       id: passkeyData.user_id,
@@ -377,7 +399,7 @@ export async function verifyPasskey(email: string, passkeyCredential: any): Prom
 
     // Check if user has registered passkeys
     const passkeyResult = await sql`
-      SELECT credential_id, public_key, counter
+      SELECT credential_id, public_key, counter, challenge
       FROM user_passkeys 
       WHERE user_id = ${user.id} AND credential_id = ${passkeyCredential.id}
     `
@@ -387,30 +409,52 @@ export async function verifyPasskey(email: string, passkeyCredential: any): Prom
       return { success: false }
     }
 
-    // TODO: Implement proper WebAuthn signature verification
-    // For now, we'll assume the credential is valid if it exists
-    console.log("[v0] Passkey verification successful")
+    const storedPasskey = passkeyResult[0]
 
-    // Update passkey counter
-    await sql`
-      UPDATE user_passkeys 
-      SET counter = counter + 1, last_used = NOW()
-      WHERE credential_id = ${passkeyCredential.id}
-    `
+    try {
+      const verification: VerifiedAuthenticationResponse = await verifyAuthenticationResponse({
+        response: passkeyCredential,
+        expectedChallenge: storedPasskey.challenge || "",
+        expectedOrigin: origin,
+        expectedRPID: rpID,
+        authenticator: {
+          credentialID: Buffer.from(passkeyCredential.id, "base64"),
+          credentialPublicKey: Buffer.from(storedPasskey.public_key, "base64"),
+          counter: storedPasskey.counter,
+        },
+      })
 
-    return {
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        wallet_address: user.wallet_address,
-        patient_certification: user.patient_certification,
-        dc_residency: user.dc_residency,
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-      },
+      if (!verification.verified) {
+        console.error("[v0] Passkey verification failed")
+        return { success: false }
+      }
+
+      console.log("[v0] Passkey verification successful")
+
+      // Update passkey counter
+      await sql`
+        UPDATE user_passkeys 
+        SET counter = ${verification.authenticationInfo.newCounter}, last_used = NOW()
+        WHERE credential_id = ${passkeyCredential.id}
+      `
+
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          wallet_address: user.wallet_address,
+          patient_certification: user.patient_certification,
+          dc_residency: user.dc_residency,
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+        },
+      }
+    } catch (verifyError) {
+      console.error("[v0] WebAuthn verification error:", verifyError)
+      return { success: false }
     }
   } catch (error) {
     console.error("[v0] Passkey verification error:", error)
@@ -477,5 +521,46 @@ export async function createEmbeddedWallet(): Promise<{ address: string; private
   } catch (error) {
     console.error("[v0] Error creating embedded wallet:", error)
     throw new Error("Failed to create embedded wallet")
+  }
+}
+
+// WebAuthn configuration
+const rpName = "PuffPass"
+const rpID = process.env.NEXT_PUBLIC_VERCEL_URL?.replace("https://", "") || "localhost"
+const origin = process.env.NEXT_PUBLIC_VERCEL_URL || "http://localhost:3000"
+
+export async function verifyPasskeyRegistration(
+  userId: string,
+  registrationResponse: any,
+  expectedChallenge: string,
+): Promise<{ success: boolean; credential?: PasskeyCredential }> {
+  try {
+    const verification: VerifiedRegistrationResponse = await verifyRegistrationResponse({
+      response: registrationResponse,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+    })
+
+    if (!verification.verified || !verification.registrationInfo) {
+      return { success: false }
+    }
+
+    const { credentialPublicKey, credentialID, counter } = verification.registrationInfo
+
+    const credential: PasskeyCredential = {
+      id: Buffer.from(credentialID).toString("base64"),
+      publicKey: Buffer.from(credentialPublicKey).toString("base64"),
+      counter,
+      deviceType: registrationResponse.response.authenticatorAttachment || "unknown",
+      createdAt: new Date(),
+    }
+
+    await registerPasskey(userId, credential)
+
+    return { success: true, credential }
+  } catch (error) {
+    console.error("[v0] Passkey registration verification error:", error)
+    return { success: false }
   }
 }

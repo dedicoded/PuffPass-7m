@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { getSession } from "@/lib/auth"
+import { CybridProvider } from "@/lib/payment-providers/cybrid"
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -13,17 +14,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { amount, fees, puffAmount } = await request.json()
+    const { amount, fees, puffAmount, symbol } = await request.json()
 
     if (!amount || amount < 50) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid amount. Minimum $50 required." }, { status: 400 })
     }
 
-    // TODO: Implement actual Cybrid API calls for payment processing
-    // For now, simulate successful payment processing
+    const cybridProvider = new CybridProvider()
+
+    const paymentResult = await cybridProvider.processPayment({
+      userId: user.id,
+      amount: amount,
+      currency: "USD",
+      symbol: symbol || "BTC-USD",
+      fees: fees,
+    })
+
+    if (!paymentResult.success) {
+      console.error("[v0] Cybrid payment failed:", paymentResult.error)
+      return NextResponse.json(
+        {
+          error: paymentResult.error || "Payment processing failed",
+          details: paymentResult.details,
+        },
+        { status: 500 },
+      )
+    }
 
     // Create transaction record
-    const transactionId = `cybrid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const transactionId = paymentResult.transactionId
 
     await sql`
       INSERT INTO transactions (
@@ -31,10 +50,10 @@ export async function POST(request: NextRequest) {
         external_transaction_id, puff_amount, created_at
       ) VALUES (
         ${transactionId},
-        ${user.id}, -- Use actual authenticated user ID
+        ${user.id},
         ${amount},
         ${fees},
-        'completed',
+        ${paymentResult.status},
         'cybrid',
         ${transactionId},
         ${puffAmount},
@@ -50,9 +69,15 @@ export async function POST(request: NextRequest) {
       amount,
       puffAmount,
       method: "cybrid",
+      status: paymentResult.status,
+      mode: paymentResult.mode,
+      details: paymentResult.details,
     })
   } catch (error) {
     console.error("[v0] Cybrid payment error:", error)
-    return NextResponse.json({ error: "Payment processing failed" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Payment processing failed", details: error instanceof Error ? error.message : String(error) },
+      { status: 500 },
+    )
   }
 }

@@ -126,4 +126,4 @@ These accounts are used internally by Cybrid for:
 - ✅ Restrict API key permissions to minimum required scope
 \`\`\`
 
-```json file="" isHidden
+\`\`\`json file="" isHidden
