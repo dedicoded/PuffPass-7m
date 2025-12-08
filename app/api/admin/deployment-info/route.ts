@@ -33,7 +33,7 @@ export async function GET() {
         database: "PostgreSQL",
         orm: "Drizzle",
         auth: "NextAuth.js",
-        payments: "Cybrid + Sphere",
+        payments: "XAIGATE (USDC on Solana)",
         deployment: "Vercel",
       },
     }

@@ -2,6 +2,10 @@
 
 import type React from "react"
 import { useState, useEffect, createContext, useContext } from "react"
+import { WagmiProvider, http, createConfig, cookieStorage, createStorage } from "wagmi"
+import { sepolia } from "wagmi/chains"
+import { injected, walletConnect } from "wagmi/connectors"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 export type Web3HealthStatus = {
   isHealthy: boolean
@@ -42,7 +46,6 @@ let cachedQueryClient: any = null
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [hasWeb3, setHasWeb3] = useState(false)
-  const [Web3Components, setWeb3Components] = useState<any>(null)
   const [healthStatus, setHealthStatus] = useState<Web3HealthStatus>({
     isHealthy: false,
     status: "initializing",
@@ -72,73 +75,50 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        const [wagmi, tanstackQuery] = await Promise.all([
-          import("wagmi").catch((err) => {
-            console.error("[v0] Failed to import wagmi:", err)
-            return null
-          }),
-          import("@tanstack/react-query").catch((err) => {
-            console.error("[v0] Failed to import react-query:", err)
-            return null
-          }),
-        ])
-
-        if (!wagmi || !tanstackQuery) {
-          console.warn("[v0] Web3 dependencies failed to load - continuing without Web3")
-          setHealthStatus({
-            isHealthy: false,
-            status: "unavailable",
-            error: "Web3 dependencies failed to load",
-            lastChecked: new Date(),
-            projectId,
-            isDemo: projectId === "demo-project-id",
-          })
-          setIsInitialized(true)
-          return
-        }
-
-        const { WagmiProvider, http, createConfig, cookieStorage, createStorage } = wagmi
-        const { QueryClient, QueryClientProvider } = tanstackQuery
-
         if (!cachedConfig) {
-          const [wagmiChains, wagmiConnectors] = await Promise.all([import("wagmi/chains"), import("wagmi/connectors")])
-
-          const { sepolia } = wagmiChains
-          const { injected, walletConnect } = wagmiConnectors
-
-          cachedConfig = createConfig({
-            chains: [sepolia],
-            connectors: [
-              injected(),
-              ...(projectId !== "demo-project-id"
-                ? [
-                    walletConnect({
-                      projectId,
-                      metadata: {
-                        name: "PuffPass",
-                        description: "Cannabis compliance and payment platform",
-                        url: typeof window !== "undefined" ? window.location.origin : "https://puffpass.app",
-                        icons: [
-                          `${typeof window !== "undefined" ? window.location.origin : "https://puffpass.app"}/icon.png`,
-                        ],
-                      },
-                      showQrModal: true,
-                    }),
-                  ]
-                : []),
-            ],
-            transports: {
-              [sepolia.id]: http(),
-            },
-            ssr: true,
-            storage: createStorage({
-              storage: cookieStorage,
-            }),
-            batch: {
-              multicall: false,
-            },
-            multiInjectedProviderDiscovery: false,
-          })
+          try {
+            cachedConfig = createConfig({
+              chains: [sepolia],
+              connectors: [
+                injected({
+                  shimDisconnect: false, // Don't auto-connect
+                }),
+                ...(projectId !== "demo-project-id"
+                  ? [
+                      walletConnect({
+                        projectId,
+                        metadata: {
+                          name: "PuffPass",
+                          description: "Cannabis compliance and payment platform",
+                          url: typeof window !== "undefined" ? window.location.origin : "https://puffpass.app",
+                          icons: [
+                            `${typeof window !== "undefined" ? window.location.origin : "https://puffpass.app"}/icon.png`,
+                          ],
+                        },
+                        showQrModal: true,
+                      }),
+                    ]
+                  : []),
+              ],
+              transports: {
+                [sepolia.id]: http(),
+              },
+              ssr: true,
+              storage: createStorage({
+                storage: cookieStorage,
+              }),
+              batch: {
+                multicall: false,
+              },
+              multiInjectedProviderDiscovery: false,
+            })
+          } catch (connectorError) {
+            console.warn(
+              "[v0] Connector initialization warning:",
+              connectorError instanceof Error ? connectorError.message : "Unknown error",
+            )
+            // Continue anyway - connectors will be available but won't auto-connect
+          }
         }
 
         if (!cachedQueryClient) {
@@ -150,7 +130,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
                 refetchOnMount: false,
                 refetchOnReconnect: false,
                 staleTime: Number.POSITIVE_INFINITY,
-                cacheTime: Number.POSITIVE_INFINITY,
+                gcTime: Number.POSITIVE_INFINITY,
               },
             },
           })
@@ -188,12 +168,6 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
           isDemo: projectId === "demo-project-id",
         })
 
-        setWeb3Components({
-          WagmiProvider,
-          QueryClientProvider,
-          config: cachedConfig,
-          queryClient: cachedQueryClient,
-        })
         setHasWeb3(true)
         setIsInitialized(true)
       } catch (error) {
@@ -235,7 +209,36 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason
+      const errorMessage = reason?.message || reason?.toString() || ""
+
+      // Check for wallet/connector related errors more broadly
+      const isWalletError =
+        errorMessage.includes("MetaMask") ||
+        errorMessage.includes("connector") ||
+        errorMessage.includes("wallet") ||
+        errorMessage.includes("Failed to connect") ||
+        errorMessage.includes("User rejected") ||
+        errorMessage.includes("Connection") ||
+        reason?.code === 4001 || // User rejected request
+        reason?.code === -32002 || // Request already pending
+        errorMessage.startsWith("i:") // Wagmi error format
+
+      if (isWalletError) {
+        console.warn("[v0] Suppressed wallet connection error:", errorMessage)
+        event.preventDefault() // Prevent the error from being logged to console
+        return
+      }
+    }
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection)
+
     initializeWeb3()
+
+    return () => {
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection)
+    }
   }, [])
 
   if (!isInitialized) {
@@ -250,16 +253,14 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!hasWeb3 || !Web3Components) {
+  if (!hasWeb3 || !cachedConfig || !cachedQueryClient) {
     return <Web3HealthContext.Provider value={healthStatus}>{children}</Web3HealthContext.Provider>
   }
 
-  const { WagmiProvider, QueryClientProvider, config, queryClient } = Web3Components
-
   return (
     <Web3HealthContext.Provider value={healthStatus}>
-      <WagmiProvider config={config}>
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <WagmiProvider config={cachedConfig}>
+        <QueryClientProvider client={cachedQueryClient}>{children}</QueryClientProvider>
       </WagmiProvider>
     </Web3HealthContext.Provider>
   )

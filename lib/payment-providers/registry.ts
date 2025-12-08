@@ -1,11 +1,11 @@
 // Payment Provider Registry - Centralized provider management
 
 import type { PaymentProvider } from "./base"
-import { CybridProvider } from "./cybrid"
+import { XAIGateProvider } from "./xaigate"
 
 export class PaymentProviderRegistry {
   private providers = new Map<string, PaymentProvider>()
-  private defaultProvider = "cybrid"
+  private defaultProvider = "xaigate"
 
   register(provider: PaymentProvider) {
     this.providers.set(provider.name, provider)
@@ -40,10 +40,9 @@ export class PaymentProviderRegistry {
   }
 }
 
-// Initialize global registry with Cybrid as primary provider
 export const paymentRegistry = new PaymentProviderRegistry()
-paymentRegistry.register(new CybridProvider())
+paymentRegistry.register(new XAIGateProvider())
 
 // Future providers can be added here:
-// paymentRegistry.register(new SphereProvider())
-// paymentRegistry.register(new StripeProvider())
+// paymentRegistry.register(new CircleProvider())
+// paymentRegistry.register(new CoinbaseProvider())

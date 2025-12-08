@@ -19,6 +19,7 @@ export default function OnboardPage() {
   const [isConnecting, setIsConnecting] = useState(false)
   const [isSigningUp, setIsSigningUp] = useState(false)
   const [signupError, setSignupError] = useState("")
+  const [walletError, setWalletError] = useState("")
   const [wagmiHooks, setWagmiHooks] = useState<any>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -53,11 +54,11 @@ export default function OnboardPage() {
     }
 
     setIsConnecting(true)
+    setWalletError("")
     console.log("[v0] Starting wallet connection...")
 
     try {
       if (wagmiHooks && typeof window !== "undefined") {
-        // Wait a bit for wagmi to be ready
         await new Promise((resolve) => setTimeout(resolve, 100))
       }
 
@@ -72,7 +73,6 @@ export default function OnboardPage() {
           console.log("[v0] Wallet connected:", address)
           setWalletAddress(address)
 
-          // Save wallet address to backend
           const response = await fetch("/api/wallet/save-address", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -82,9 +82,7 @@ export default function OnboardPage() {
           if (response.ok) {
             const result = await response.json()
 
-            // Check if this is a trusted wallet (trustee)
             if (result.isTrustee) {
-              // Redirect to trustee dashboard
               window.location.href = "/trustee"
               return
             }
@@ -93,17 +91,18 @@ export default function OnboardPage() {
           setOnboardingStep("complete")
         }
       } else {
-        // Fallback for demo
-        console.log("[v0] No ethereum provider, using demo address")
-        const demoAddress = "0x742d35Cc6634C0532925a3b8D4C9db96590b5b8e"
-        setWalletAddress(demoAddress)
-        setOnboardingStep("complete")
+        console.log("[v0] No ethereum provider found")
+        setWalletError("MetaMask not detected. Please install MetaMask or use Email & Phone signup.")
       }
     } catch (error: any) {
-      if (error.message?.includes("already pending")) {
-        console.log("[v0] Wallet connection request already pending, please wait...")
+      console.error("[v0] Wallet connection failed:", error)
+
+      if (error.code === 4001) {
+        setWalletError("Connection rejected. Please try again.")
+      } else if (error.message?.includes("already pending")) {
+        setWalletError("Connection request already pending. Please check your wallet.")
       } else {
-        console.error("[v0] Wallet connection failed:", error)
+        setWalletError("Failed to connect to MetaMask. Please try again or use Email & Phone signup.")
       }
     } finally {
       setTimeout(() => {
@@ -118,14 +117,13 @@ export default function OnboardPage() {
     setSignupError("")
 
     try {
-      // Call the registration API to create user with embedded wallet
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: email.split("@")[0], // Use email prefix as name for now
+          name: email.split("@")[0],
           email: email.trim().toLowerCase(),
-          password: Math.random().toString(36).slice(-12), // Generate random password for email-only signup
+          password: Math.random().toString(36).slice(-12),
           role: "customer",
           phone: phone.trim(),
         }),
@@ -143,7 +141,6 @@ export default function OnboardPage() {
       const data = await response.json()
 
       if (data.success) {
-        // Set the embedded wallet address from the response
         if (data.user?.embedded_wallet) {
           setWalletAddress(data.user.embedded_wallet)
         }
@@ -198,7 +195,6 @@ export default function OnboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -215,7 +211,6 @@ export default function OnboardPage() {
 
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto">
-          {/* Progress indicator */}
           <div className="flex items-center justify-center mb-8">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
@@ -257,6 +252,9 @@ export default function OnboardPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {walletError && (
+                        <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">{walletError}</div>
+                      )}
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center space-x-2">
                           <Zap className="w-4 h-4 text-success" />
@@ -283,6 +281,20 @@ export default function OnboardPage() {
                         <p className="text-xs text-muted-foreground text-center">
                           Please check your wallet for the connection request
                         </p>
+                      )}
+                      {walletError && walletError.includes("not detected") && (
+                        <div className="text-xs text-muted-foreground text-center p-2 bg-muted rounded">
+                          Don't have MetaMask?{" "}
+                          <a
+                            href="https://metamask.io/download/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            Install it here
+                          </a>{" "}
+                          or use Email & Phone signup instead.
+                        </div>
                       )}
                     </CardContent>
                   </Card>
@@ -343,7 +355,6 @@ export default function OnboardPage() {
                 </TabsContent>
               </Tabs>
 
-              {/* Features */}
               <div className="grid md:grid-cols-3 gap-4 pt-8">
                 <div className="text-center space-y-2">
                   <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center mx-auto">

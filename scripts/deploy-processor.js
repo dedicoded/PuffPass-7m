@@ -8,8 +8,8 @@ async function main() {
 
   // Required addresses
   const USDC_ADDRESS = process.env.USDC_TOKEN_ADDRESS
-  const PUFF_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_PUFF_TOKEN_ADDRESS
-  const COMPLIANCE_ADDRESS = process.env.NEXT_PUBLIC_COMPLIANCE_CONTRACT_ADDRESS
+  const PUFF_TOKEN_ADDRESS = process.env.PUFF_TOKEN_ADDRESS
+  const COMPLIANCE_ADDRESS = process.env.COMPLIANCE_CONTRACT_ADDRESS
   const TREASURY = process.env.PLATFORM_TREASURY_ADDRESS || deployer.address
   const VAULT = process.env.PUFF_VAULT_ADDRESS || deployer.address
 
@@ -29,7 +29,7 @@ async function main() {
 
   console.log("✅ Merchant Processor deployed to:", processor.address)
   console.log("\n📝 Add to .env:")
-  console.log(`NEXT_PUBLIC_MERCHANT_PROCESSOR_ADDRESS=${processor.address}`)
+  console.log(`MERCHANT_PROCESSOR_ADDRESS=${processor.address}`)
 }
 
 main()

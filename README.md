@@ -20,12 +20,11 @@ A comprehensive cannabis marketplace platform built with Next.js, TypeScript, an
 - **Database**: Neon PostgreSQL with Drizzle ORM
 - **Blockchain**: Hardhat, TypeChain, Ethers.js
 - **Authentication**: Stack Auth
-- **Payment Processing**: Cybrid + Sphere (crypto-native)
+- **Payment Processing**: XAIGATE (USDC on Solana)
 - **Deployment**: Vercel
 
 ## 🏗️ Payment Architecture
 
-\`\`\`
 ┌─────────────────────────────────────────────────────────────────┐
 │                    MyCora Cannabis Platform                     │
 ├─────────────────────────────────────────────────────────────────┤
@@ -46,33 +45,32 @@ A comprehensive cannabis marketplace platform built with Next.js, TypeScript, an
 │    ┌───────────────▼───────────────┐                           │
 │    │      Payment Processing       │                           │
 │    │                               │                           │
-│    │  🔗 Cybrid + Sphere ONLY     │                           │
+│    │  🔗 XAIGATE (Self-Hosted)    │                           │
 │    │                               │                           │
-│    │  ├─ Fiat-to-Crypto Onboard   │                           │
-│    │  ├─ Crypto Wallet Management │                           │
-│    │  ├─ Blockchain Transactions  │                           │
-│    │  └─ Compliance & KYC         │                           │
+│    │  ├─ USDC on Solana (~5s)     │                           │
+│    │  ├─ QR Code Payments         │                           │
+│    │  ├─ Real-time Webhooks       │                           │
+│    │  └─ POS & Online Checkout    │                           │
 │    └───────────────┬───────────────┘                           │
 │                    │                                           │
 │         ┌──────────▼──────────┐                                │
 │         │   Blockchain Layer   │                                │
-│         │   (Ethereum/Sepolia) │                                │
+│         │   (Solana Mainnet)   │                                │
 │         └─────────────────────┘                                │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 
-🚫 NO STRIPE - Crypto-Native Payment Processing Only
-\`\`\`
+🚀 XAIGATE - Open-Source, Self-Hosted Crypto Payments
 
 **Key Payment Flow:**
-1. **Customer Checkout** → Cybrid fiat-to-crypto onboarding
-2. **Crypto Wallet** → Sphere wallet management & transactions  
-3. **Smart Contracts** → Blockchain-verified cannabis transactions
-4. **Merchant Settlement** → Direct crypto payments via Cybrid
+1. **Customer Checkout** → XAIGATE generates payment request
+2. **QR Code Display** → Customer scans with any Solana wallet
+3. **USDC Transfer** → Fast (~5 seconds), low-fee (~$0.00025) payment
+4. **Webhook Confirmation** → Automatic order fulfillment
+5. **Merchant Settlement** → Direct USDC to merchant wallet
 
 ### 🔮 Future-Ready Extensions
 
-\`\`\`
 ┌─────────────────────────────────────────────────────────────────┐
 │                 Modular Payment Architecture                    │
 ├─────────────────────────────────────────────────────────────────┤
@@ -87,11 +85,11 @@ A comprehensive cannabis marketplace platform built with Next.js, TypeScript, an
 │           ▼               ▼               ▼                     │
 │                                                                 │
 │    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐              │
-│    │ Fiat Rails  │ │Crypto Rails │ │Compliance   │              │
-│    │             │ │             │ │Providers    │              │
-│    │ ✅ Cybrid   │ │ ✅ Sphere   │ │ ✅ Cybrid   │              │
-│    │ 🔌 Ramp     │ │ 🔌 Circle   │ │ 🔌 Chainalysis│            │
-│    │ 🔌 MoonPay  │ │ 🔌 Coinbase │ │ 🔌 Elliptic │              │
+│    │ Crypto Rails│ │Multi-Chain  │ │Compliance   │              │
+│    │             │ │Support      │ │Providers    │              │
+│    │ ✅ XAIGATE  │ │ ✅ Solana   │ │ 🔌 Chainalysis│            │
+│    │ 🔌 Circle   │ │ 🔌 Polygon  │ │ 🔌 Elliptic │              │
+│    │ 🔌 Coinbase │ │ 🔌 Base     │ │ 🔌 TRM Labs │              │
 │    └─────────────┘ └─────────────┘ └─────────────┘              │
 │           │               │               │                     │
 │           └───────────────┼───────────────┘                     │
@@ -101,7 +99,7 @@ A comprehensive cannabis marketplace platform built with Next.js, TypeScript, an
 │    ┌─────────────────────────────────────────────────────────┐  │
 │    │              Stablecoin Support                         │  │
 │    │                                                         │  │
-│    │  ✅ USDC/USDT    🔌 DAI        🔌 PYUSD                │  │
+│    │  ✅ USDC         🔌 USDT       🔌 DAI                  │  │
 │    │  ✅ Current      🔌 Future     🔌 Future               │  │
 │    │                                                         │  │
 │    │  🔌 CBDCs (Future) - Central Bank Digital Currencies   │  │
@@ -112,14 +110,13 @@ A comprehensive cannabis marketplace platform built with Next.js, TypeScript, an
 │         ┌─────────────────────────────────────────┐             │
 │         │        Blockchain Settlement            │             │
 │         │                                         │             │
-│         │  ✅ Ethereum    🔌 Polygon    🔌 Base   │             │
-│         │  ✅ Sepolia     🔌 Arbitrum   🔌 Solana │             │
+│         │  ✅ Solana      🔌 Polygon    🔌 Base   │             │
+│         │  🔌 Ethereum    🔌 Arbitrum   🔌 Optimism│            │
 │         └─────────────────────────────────────────┘             │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 
 Legend: ✅ Currently Active  🔌 Future Extension Points
-\`\`\`
 
 **Why This Architecture Matters:**
 
@@ -129,37 +126,35 @@ Legend: ✅ Currently Active  🔌 Future Extension Points
 - **For Merchants**: Future-proof platform that can adapt to regulatory changes
 
 **Extension Strategy:**
-- **Phase 1**: Cybrid + Sphere (Current)
-- **Phase 2**: Additional stablecoins (DAI, PYUSD)
+- **Phase 1**: XAIGATE + Solana USDC (Current)
+- **Phase 2**: Additional stablecoins (USDT, DAI)
 - **Phase 3**: Multi-chain support (Polygon, Base, Arbitrum)
 - **Phase 4**: CBDC integration when available
 - **Phase 5**: Enhanced compliance providers (Chainalysis, Elliptic)
 
 📋 **Detailed Roadmap**: See [docs/ROADMAP.md](docs/ROADMAP.md) for comprehensive phased expansion plan, technical specifications, and investment/regulatory benefits.
 
-## 💳 Payment Processing Migration
+## 💳 Payment Processing
 
-**Important**: This platform has migrated from Stripe to **Cybrid + Sphere** for all payment processing.
+**Current**: This platform uses **XAIGATE** for all crypto payment processing.
 
-### Migration Timeline
-- **Previous**: Stripe-based fiat payment processing
-- **Current**: Cybrid + Sphere for crypto-native transactions and fiat-to-crypto onboarding
-
-### Why the Change?
-- **Compliance**: Better alignment with cannabis industry regulations
-- **Crypto-Native**: Direct integration with blockchain transactions
-- **Reduced Friction**: Streamlined fiat-to-crypto onboarding experience
+### Why XAIGATE?
+- **Self-Hosted**: Full control over payment infrastructure
+- **Open Source**: Transparent, auditable payment processing
+- **Fast**: ~5 second confirmations on Solana
+- **Low Fees**: ~$0.00025 per transaction
+- **Compliant**: Built-in compliance features for cannabis industry
 
 ### For Contributors
-- All payment-related code now uses Cybrid + Sphere APIs
-- Stripe dependencies have been completely removed
-- Payment flows are handled through `/crypto-onboard` and wallet dashboard
-- No legacy Stripe code should be introduced in new features
+- All payment-related code uses XAIGATE APIs
+- Payment flows are handled through `/checkout` and POS interfaces
+- USDC on Solana is the primary payment method
+- Webhook system handles payment confirmations
 
 ### For Auditors
 - Payment processing is fully compliant with crypto transaction standards
-- All financial flows are traceable through blockchain and Cybrid infrastructure
-- No traditional payment card processing occurs on this platform
+- All financial flows are traceable through Solana blockchain
+- Self-hosted infrastructure ensures data sovereignty
 
 ## 🛡️ V0-Safe Migration System
 
@@ -228,9 +223,11 @@ STACK_SECRET_SERVER_KEY="your-stack-secret-key"
 SEPOLIA_URL="your-sepolia-rpc-url"
 PRIVATE_KEY="your-private-key"
 
-# Payment Processing
-CYBRID_API_KEY="your-cybrid-api-key"
-SPHERE_API_KEY="your-sphere-api-key"
+# Payment Processing (XAIGATE)
+XAIGATE_API_URL="http://localhost:3001"
+XAIGATE_API_KEY="your-xaigate-api-key"
+XAIGATE_WEBHOOK_SECRET="your-webhook-secret"
+XAIGATE_MERCHANT_WALLET="your-solana-wallet-address"
 
 # Email (optional - for automated compliance reports)
 SENDGRID_API_KEY="your-sendgrid-api-key"

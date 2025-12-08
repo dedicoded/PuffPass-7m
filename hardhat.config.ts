@@ -32,12 +32,25 @@ const config: HardhatUserConfig = {
       url: process.env.MAINNET_URL || "",
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
     },
+    mumbai: {
+      type: "http",
+      url: process.env.MUMBAI_RPC_URL || "https://rpc-mumbai.maticvigil.com",
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
+      chainId: 80001,
+    },
+    polygon: {
+      type: "http",
+      url: process.env.POLYGON_RPC_URL || "https://polygon-rpc.com",
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
+      chainId: 137,
+    },
   },
   etherscan: {
     apiKey: {
       sepolia: process.env.ETHERSCAN_API_KEY || "",
       mainnet: process.env.ETHERSCAN_API_KEY || "",
       polygon: process.env.POLYGONSCAN_API_KEY || "",
+      polygonMumbai: process.env.POLYGONSCAN_API_KEY || "",
     },
   },
   typechain: {

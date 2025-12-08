@@ -6,10 +6,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CreditCard, ArrowRight, CheckCircle } from "lucide-react"
-import { CybridProvider } from "@/components/cybrid-provider"
-import { CybridTradeComponent } from "@/components/cybrid-trade-component"
-import { CybridPriceList } from "@/components/cybrid-price-list"
+import { ArrowRight, CheckCircle, Coins } from "lucide-react"
+import { PolygonPayment } from "@/components/polygon-payment"
 
 interface PaymentMethod {
   id: string
@@ -21,18 +19,19 @@ interface PaymentMethod {
 
 const paymentMethods: PaymentMethod[] = [
   {
-    id: "cybrid",
-    name: "Cybrid Banking",
-    icon: <CreditCard className="w-6 h-6 text-blue-600" />,
-    description: "Crypto-native banking with instant settlement",
+    id: "polygon",
+    name: "Polygon USDC Payments",
+    icon: <Coins className="w-6 h-6 text-primary" />,
+    description: "Fast USDC payments on Polygon (~5 seconds, ~$0.01 fees)",
     enabled: true,
   },
 ]
 
 export default function OnrampPage() {
-  const [selectedMethod, setSelectedMethod] = useState<string>("cybrid")
-  const [step, setStep] = useState<"select" | "trade" | "complete">("select")
+  const [selectedMethod, setSelectedMethod] = useState<string>("polygon")
+  const [step, setStep] = useState<"select" | "payment" | "complete">("select")
   const [userId, setUserId] = useState<string | null>(null)
+  const [amount, setAmount] = useState<number>(100)
 
   useEffect(() => {
     fetchUserSession()
@@ -54,7 +53,15 @@ export default function OnrampPage() {
 
   const handleMethodSelect = (methodId: string) => {
     setSelectedMethod(methodId)
-    setStep("trade")
+    setStep("payment")
+  }
+
+  const handlePaymentSuccess = () => {
+    setStep("complete")
+  }
+
+  const handlePaymentCancel = () => {
+    setStep("select")
   }
 
   return (
@@ -91,7 +98,7 @@ export default function OnrampPage() {
               <div className="w-16 h-0.5 bg-border"></div>
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step === "trade"
+                  step === "payment"
                     ? "bg-primary text-primary-foreground"
                     : step === "complete"
                       ? "bg-success text-success-foreground"
@@ -107,17 +114,17 @@ export default function OnrampPage() {
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <h1 className="text-3xl font-bold">Add Funds to Your Account</h1>
-                <p className="text-lg text-muted-foreground">Powered by Cybrid Banking</p>
+                <p className="text-lg text-muted-foreground">Powered by PuffPassRouter - Gasless Crypto Payments</p>
               </div>
 
-              <div className="max-w-md mx-auto">
-                <Card className="card-hover cursor-pointer" onClick={() => handleMethodSelect("cybrid")}>
+              <div className="max-w-md mx-auto space-y-4">
+                <Card className="card-hover cursor-pointer" onClick={() => handleMethodSelect("polygon")}>
                   <CardHeader>
                     <div className="flex items-center space-x-3">
-                      <CreditCard className="w-6 h-6 text-blue-600" />
+                      <Coins className="w-6 h-6 text-primary" />
                       <div>
-                        <CardTitle className="text-lg">Cybrid Banking</CardTitle>
-                        <CardDescription>Crypto-native banking with instant settlement</CardDescription>
+                        <CardTitle className="text-lg">Polygon USDC Payments</CardTitle>
+                        <CardDescription>Fast USDC payments on Polygon (~5 seconds, ~$0.01 fees)</CardDescription>
                       </div>
                     </div>
                   </CardHeader>
@@ -128,29 +135,53 @@ export default function OnrampPage() {
                     </Button>
                   </CardContent>
                 </Card>
+
+                <div className="text-center text-sm text-muted-foreground">
+                  <p>✓ Self-hosted & open-source</p>
+                  <p>✓ No KYC required</p>
+                  <p>✓ 3% platform fee + gasless merchant settlements</p>
+                </div>
               </div>
             </div>
           )}
 
-          {step === "trade" && (
+          {step === "payment" && (
             <div className="space-y-6">
               <div className="text-center space-y-2">
-                <h1 className="text-2xl font-bold">Buy Cryptocurrency</h1>
-                <p className="text-muted-foreground">Powered by Cybrid Banking</p>
+                <h1 className="text-2xl font-bold">Complete Your Payment</h1>
+                <p className="text-muted-foreground">Connect your wallet and pay with USDC on Polygon</p>
               </div>
 
-              <CybridProvider>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <CybridPriceList />
-                  <CybridTradeComponent asset="BTC" fiat="USD" />
-                </div>
-              </CybridProvider>
+              <PolygonPayment
+                merchantAddress={userId || "0x0000000000000000000000000000000000000000"}
+                orderId={`onramp_${Date.now()}`}
+                description="Add funds to PuffPass account"
+                onSuccess={handlePaymentSuccess}
+                onCancel={handlePaymentCancel}
+              />
 
               <div className="flex justify-center">
                 <Button variant="outline" onClick={() => setStep("select")}>
                   Back to Payment Methods
                 </Button>
               </div>
+            </div>
+          )}
+
+          {step === "complete" && (
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-10 h-10 text-success-foreground" />
+                </div>
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Payment Successful!</h1>
+                <p className="text-lg text-muted-foreground">Your funds have been added to your account</p>
+              </div>
+              <Button asChild>
+                <Link href="/dashboard">Go to Dashboard</Link>
+              </Button>
             </div>
           )}
         </div>

@@ -12,7 +12,7 @@ async function main() {
 
   console.log("✅ PUFF Token deployed to:", puffToken.address)
   console.log("\n📝 Add to .env:")
-  console.log(`NEXT_PUBLIC_PUFF_TOKEN_ADDRESS=${puffToken.address}`)
+  console.log(`PUFF_TOKEN_ADDRESS=${puffToken.address}`)
 }
 
 main()

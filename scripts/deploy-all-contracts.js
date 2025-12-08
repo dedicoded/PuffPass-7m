@@ -74,10 +74,10 @@ async function main() {
   console.log("Redemption Contract:  ", redemptionContract.address)
   console.log("=".repeat(60))
   console.log("\n📝 Add these to your .env file:")
-  console.log(`NEXT_PUBLIC_PUFF_TOKEN_ADDRESS=${puffToken.address}`)
-  console.log(`NEXT_PUBLIC_COMPLIANCE_CONTRACT_ADDRESS=${complianceContract.address}`)
-  console.log(`NEXT_PUBLIC_MERCHANT_PROCESSOR_ADDRESS=${merchantProcessor.address}`)
-  console.log(`NEXT_PUBLIC_REDEMPTION_CONTRACT_ADDRESS=${redemptionContract.address}`)
+  console.log(`PUFF_TOKEN_ADDRESS=${puffToken.address}`)
+  console.log(`COMPLIANCE_CONTRACT_ADDRESS=${complianceContract.address}`)
+  console.log(`MERCHANT_PROCESSOR_ADDRESS=${merchantProcessor.address}`)
+  console.log(`REDEMPTION_CONTRACT_ADDRESS=${redemptionContract.address}`)
   console.log("\n✅ All contracts deployed successfully!")
 }
 

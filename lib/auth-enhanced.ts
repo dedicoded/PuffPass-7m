@@ -507,12 +507,18 @@ export async function createEmbeddedWallet(): Promise<{ address: string; private
 
     console.log("[v0] Embedded wallet created:", address)
 
-    const sql = await getSql()
-    // Store wallet in database for recovery
-    await sql`
-      INSERT INTO embedded_wallets (address, created_at)
-      VALUES (${address}, NOW())
-    `
+    try {
+      const sql = await getSql()
+      // Store wallet in database for recovery
+      await sql`
+        INSERT INTO embedded_wallets (address, created_at)
+        VALUES (${address}, NOW())
+      `
+      console.log("[v0] Embedded wallet stored in database")
+    } catch (dbError) {
+      console.warn("[v0] Failed to store embedded wallet in database (non-critical):", dbError)
+      // Continue without storing - the wallet address is still returned and will be stored in users table
+    }
 
     return {
       address,

@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       embeddedWalletAddress = embeddedWallet.address
       console.log("[v0] Embedded wallet created:", embeddedWalletAddress)
     } catch (walletError) {
-      console.error("[v0] Failed to create embedded wallet:", walletError)
+      console.error("[v0] Failed to create embedded wallet (non-critical):", walletError)
       // Continue without embedded wallet - it's not critical for registration
     }
 
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
         `
         console.log("[v0] Welcome bonus created: 50 PUFF")
       } catch (bonusError) {
-        console.error("[v0] Failed to create welcome bonus:", bonusError)
+        console.error("[v0] Failed to create welcome bonus (non-critical):", bonusError)
         // Non-critical, continue
       }
     }

@@ -469,7 +469,7 @@ export default function AdminDashboard() {
           database: "PostgreSQL",
           orm: "Drizzle",
           auth: "NextAuth.js",
-          payments: "Cybrid + Sphere",
+          payments: "XAIGATE (USDC on Solana)",
           deployment: "Vercel",
         },
       })
@@ -1518,7 +1518,7 @@ export default function AdminDashboard() {
                   {deploymentInfo?.tech_stack &&
                     Object.entries(deploymentInfo.tech_stack).map(([key, value]) => (
                       <div key={key} className="p-4 border rounded-lg hover:bg-accent transition-colors">
-                        <p className="text-sm text-muted-foreground capitalize mb-1">{key.replace("_", " ")}</p>
+                        <p className="text-sm text-muted-foreground capitalize">{key.replace("_", " ")}</p>
                         <p className="font-medium">{value as string}</p>
                       </div>
                     ))}
