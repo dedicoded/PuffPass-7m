@@ -19,8 +19,10 @@ interface PolygonPaymentProps {
   onCancel?: () => void
 }
 
-const POLYGON_USDC = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+const POLYGON_USDC = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
 const PUFFPASS_ROUTER = process.env.NEXT_PUBLIC_PUFFPASS_ROUTER_ADDRESS || ""
+const PUFFPASS_TREASURY =
+  process.env.NEXT_PUBLIC_PUFFPASS_TREASURY_ADDRESS || "0x0000000000000000000000000000000000000000"
 
 const ROUTER_ABI = [
   "function pay(address merchant, uint256 amount) external",
@@ -42,12 +44,19 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
   const [txHash, setTxHash] = useState<string>("")
   const [error, setError] = useState<string>("")
   const [networkName, setNetworkName] = useState<string>("")
+  const [usdcBalance, setUsdcBalance] = useState<string>("0")
+
+  const effectiveRecipient =
+    merchantAddress && merchantAddress !== "0x0000000000000000000000000000000000000000"
+      ? merchantAddress
+      : PUFFPASS_TREASURY
 
   useEffect(() => {
     checkConnection()
   }, [])
 
   const checkConnection = async () => {
+    console.log("[v0] Checking wallet connection...")
     if (typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
       try {
         const provider = new BrowserProvider(window.ethereum)
@@ -57,14 +66,32 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
           setWalletAddress(address)
           const network = await provider.getNetwork()
           setNetworkName(network.name)
+          console.log("[v0] Wallet already connected:", address, "Network:", network.name)
+
+          await fetchUsdcBalance(provider, address)
         }
       } catch (err) {
         console.error("[v0] Failed to check connection:", err)
       }
+    } else {
+      console.log("[v0] No ethereum provider found")
+    }
+  }
+
+  const fetchUsdcBalance = async (provider: any, address: string) => {
+    try {
+      const usdc = new Contract(POLYGON_USDC, USDC_ABI, provider)
+      const balance = await usdc.balanceOf(address)
+      const formattedBalance = ethers.formatUnits(balance, 6)
+      setUsdcBalance(formattedBalance)
+      console.log("[v0] USDC balance:", formattedBalance)
+    } catch (err) {
+      console.error("[v0] Failed to fetch USDC balance:", err)
     }
   }
 
   const connectWallet = async () => {
+    console.log("[v0] Connecting wallet...")
     setLoading(true)
     setError("")
     setStatus("connecting")
@@ -79,11 +106,14 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
       const signer = await provider.getSigner()
       const address = await signer.getAddress()
       setWalletAddress(address)
+      console.log("[v0] Connected wallet:", address)
 
       const network = await provider.getNetwork()
       setNetworkName(network.name)
+      console.log("[v0] Network:", network.name, "Chain ID:", network.chainId)
 
       if (network.chainId !== 137n) {
+        console.log("[v0] Switching to Polygon network...")
         try {
           await window.ethereum.request({
             method: "wallet_switchEthereumChain",
@@ -91,6 +121,7 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
           })
         } catch (switchError: any) {
           if (switchError.code === 4902) {
+            console.log("[v0] Adding Polygon network...")
             await window.ethereum.request({
               method: "wallet_addEthereumChain",
               params: [
@@ -109,6 +140,8 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
         }
       }
 
+      await fetchUsdcBalance(provider, address)
+
       toast.success("Wallet connected successfully!")
       setStatus("idle")
     } catch (err: any) {
@@ -122,6 +155,10 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
   }
 
   const processPayment = async () => {
+    console.log("[v0] Starting payment process...")
+    console.log("[v0] Amount:", amount, "Recipient:", effectiveRecipient)
+    console.log("[v0] Router address:", PUFFPASS_ROUTER)
+
     if (!walletAddress) {
       toast.error("Please connect your wallet first")
       return
@@ -133,7 +170,16 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
     }
 
     if (!PUFFPASS_ROUTER) {
-      toast.error("PuffPassRouter not configured")
+      console.error("[v0] PuffPassRouter address not configured")
+      setError("Payment system not configured. Please contact support.")
+      toast.error("Payment system not configured. The PuffPassRouter contract address is missing.")
+      return
+    }
+
+    if (!effectiveRecipient || effectiveRecipient === "0x0000000000000000000000000000000000000000") {
+      console.error("[v0] No valid recipient address")
+      setError("No valid recipient address configured")
+      toast.error("Payment recipient not configured. Please try again later.")
       return
     }
 
@@ -144,42 +190,64 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
       const provider = new BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       const amountInUSDC = parseUnits(amount, 6)
+      console.log("[v0] Amount in USDC (6 decimals):", amountInUSDC.toString())
+
+      const usdc = new Contract(POLYGON_USDC, USDC_ABI, signer)
+      const balance = await usdc.balanceOf(walletAddress)
+      console.log("[v0] Current USDC balance:", ethers.formatUnits(balance, 6))
+
+      if (balance < amountInUSDC) {
+        throw new Error(
+          `Insufficient USDC balance. You have ${ethers.formatUnits(balance, 6)} USDC but need ${amount} USDC`,
+        )
+      }
 
       setStatus("approving")
-      const usdc = new Contract(POLYGON_USDC, USDC_ABI, signer)
-
       const currentAllowance = await usdc.allowance(walletAddress, PUFFPASS_ROUTER)
+      console.log("[v0] Current allowance:", ethers.formatUnits(currentAllowance, 6))
 
       if (currentAllowance < amountInUSDC) {
         console.log("[v0] Approving USDC spending...")
         const approveTx = await usdc.approve(PUFFPASS_ROUTER, amountInUSDC)
+        console.log("[v0] Approval tx hash:", approveTx.hash)
         await approveTx.wait()
         toast.success("USDC spending approved!")
+        console.log("[v0] Approval confirmed")
       }
 
       setStatus("paying")
       const router = new Contract(PUFFPASS_ROUTER, ROUTER_ABI, signer)
 
       console.log("[v0] Processing payment via PuffPassRouter...")
-      const payTx = await router.pay(merchantAddress, amountInUSDC)
+      console.log("[v0] Calling router.pay(", effectiveRecipient, ",", amountInUSDC.toString(), ")")
+      const payTx = await router.pay(effectiveRecipient, amountInUSDC)
+      console.log("[v0] Payment tx hash:", payTx.hash)
       const receipt = await payTx.wait()
+      console.log("[v0] Payment confirmed in block:", receipt.blockNumber)
 
       setTxHash(receipt.hash)
       setStatus("success")
       toast.success("Payment successful!")
 
-      await fetch("/api/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId,
-          amount: Number.parseFloat(amount),
-          merchantAddress,
-          txHash: receipt.hash,
-          network: "polygon",
-          description,
-        }),
-      })
+      try {
+        console.log("[v0] Recording payment in database...")
+        await fetch("/api/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId,
+            amount: Number.parseFloat(amount),
+            merchantAddress: effectiveRecipient,
+            txHash: receipt.hash,
+            network: "polygon",
+            description,
+          }),
+        })
+        console.log("[v0] Payment recorded successfully")
+      } catch (dbErr) {
+        console.error("[v0] Failed to record payment in database:", dbErr)
+        // Don't fail the payment if DB recording fails
+      }
 
       onSuccess?.()
     } catch (err: any) {
@@ -201,6 +269,8 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
 
   const { fee, net } = calculateFee()
 
+  const isConfigured = !!PUFFPASS_ROUTER && effectiveRecipient !== "0x0000000000000000000000000000000000000000"
+
   return (
     <Card>
       <CardHeader>
@@ -208,13 +278,28 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
         <CardDescription>Fast, low-cost payments powered by PuffPassRouter</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!isConfigured && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-destructive">Payment System Not Configured</p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {!PUFFPASS_ROUTER && "Missing NEXT_PUBLIC_PUFFPASS_ROUTER_ADDRESS. "}
+                  {effectiveRecipient === "0x0000000000000000000000000000000000000000" && "Missing recipient address."}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-sm">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-medium text-primary">System Upgrade</p>
+              <p className="font-medium text-primary">Polygon USDC Payments</p>
               <p className="text-muted-foreground text-xs mt-1">
-                We've upgraded to PuffPassRouter on Polygon for better performance and lower fees!
+                Fast confirmations (~5 seconds) with minimal gas fees (~$0.01)
               </p>
             </div>
           </div>
@@ -257,6 +342,12 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
                   </Badge>
                 </div>
               )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">USDC Balance:</span>
+                <Badge variant="outline" className="font-mono">
+                  ${Number(usdcBalance).toFixed(2)}
+                </Badge>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -314,7 +405,12 @@ export function PolygonPayment({ merchantAddress, orderId, description, onSucces
               </div>
             )}
 
-            <Button onClick={processPayment} disabled={loading || status === "success"} className="w-full" size="lg">
+            <Button
+              onClick={processPayment}
+              disabled={loading || status === "success" || !isConfigured}
+              className="w-full"
+              size="lg"
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

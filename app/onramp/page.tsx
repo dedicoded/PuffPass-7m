@@ -1,68 +1,73 @@
 "use client"
-
-import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowRight, CheckCircle, Coins } from "lucide-react"
+import { ArrowRight, CheckCircle, Coins, AlertCircle } from "lucide-react"
 import { PolygonPayment } from "@/components/polygon-payment"
 
-interface PaymentMethod {
-  id: string
-  name: string
-  icon: React.ReactNode
-  description: string
-  enabled: boolean
-}
-
-const paymentMethods: PaymentMethod[] = [
-  {
-    id: "polygon",
-    name: "Polygon USDC Payments",
-    icon: <Coins className="w-6 h-6 text-primary" />,
-    description: "Fast USDC payments on Polygon (~5 seconds, ~$0.01 fees)",
-    enabled: true,
-  },
-]
+const PUFFPASS_TREASURY = process.env.NEXT_PUBLIC_PUFFPASS_TREASURY_ADDRESS || ""
 
 export default function OnrampPage() {
-  const [selectedMethod, setSelectedMethod] = useState<string>("polygon")
   const [step, setStep] = useState<"select" | "payment" | "complete">("select")
   const [userId, setUserId] = useState<string | null>(null)
-  const [amount, setAmount] = useState<number>(100)
+  const [userWallet, setUserWallet] = useState<string | null>(null)
 
   useEffect(() => {
     fetchUserSession()
   }, [])
 
   const fetchUserSession = async () => {
+    console.log("[v0] Fetching user session for onramp...")
     try {
       const response = await fetch("/api/auth/session")
       if (response.ok) {
         const data = await response.json()
+        console.log("[v0] User session data:", data)
         if (data.user?.id) {
           setUserId(data.user.id)
         }
+        if (data.user?.walletAddress) {
+          setUserWallet(data.user.walletAddress)
+        }
       }
     } catch (error) {
-      console.error("Failed to fetch user session:", error)
+      console.error("[v0] Failed to fetch user session:", error)
     }
   }
 
-  const handleMethodSelect = (methodId: string) => {
-    setSelectedMethod(methodId)
+  const handleMethodSelect = () => {
+    console.log("[v0] Payment method selected, moving to payment step")
     setStep("payment")
   }
 
   const handlePaymentSuccess = () => {
+    console.log("[v0] Payment successful, moving to complete step")
     setStep("complete")
   }
 
   const handlePaymentCancel = () => {
+    console.log("[v0] Payment cancelled, returning to select step")
     setStep("select")
   }
+
+  const getRecipientAddress = () => {
+    // For "Add Funds", we send to the treasury which credits the user's account
+    // The treasury address should be configured
+    if (PUFFPASS_TREASURY) {
+      return PUFFPASS_TREASURY
+    }
+    // Fallback to user's wallet if they have one
+    if (userWallet) {
+      return userWallet
+    }
+    // Return empty string to trigger the "not configured" warning
+    return ""
+  }
+
+  const recipientAddress = getRecipientAddress()
+  const isConfigured = !!recipientAddress && !!process.env.NEXT_PUBLIC_PUFFPASS_ROUTER_ADDRESS
 
   return (
     <div className="min-h-screen bg-background">
@@ -117,8 +122,29 @@ export default function OnrampPage() {
                 <p className="text-lg text-muted-foreground">Powered by PuffPassRouter - Gasless Crypto Payments</p>
               </div>
 
+              {!isConfigured && (
+                <div className="max-w-md mx-auto">
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 text-sm">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-amber-600">Setup Required</p>
+                        <p className="text-muted-foreground mt-1">
+                          The payment system requires configuration. Please ensure the following environment variables
+                          are set:
+                        </p>
+                        <ul className="list-disc list-inside mt-2 text-xs text-muted-foreground">
+                          <li>NEXT_PUBLIC_PUFFPASS_ROUTER_ADDRESS</li>
+                          <li>NEXT_PUBLIC_PUFFPASS_TREASURY_ADDRESS</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="max-w-md mx-auto space-y-4">
-                <Card className="card-hover cursor-pointer" onClick={() => handleMethodSelect("polygon")}>
+                <Card className="card-hover cursor-pointer" onClick={handleMethodSelect}>
                   <CardHeader>
                     <div className="flex items-center space-x-3">
                       <Coins className="w-6 h-6 text-primary" />
@@ -153,8 +179,8 @@ export default function OnrampPage() {
               </div>
 
               <PolygonPayment
-                merchantAddress={userId || "0x0000000000000000000000000000000000000000"}
-                orderId={`onramp_${Date.now()}`}
+                merchantAddress={recipientAddress}
+                orderId={`onramp_${userId || "guest"}_${Date.now()}`}
                 description="Add funds to PuffPass account"
                 onSuccess={handlePaymentSuccess}
                 onCancel={handlePaymentCancel}
@@ -180,7 +206,7 @@ export default function OnrampPage() {
                 <p className="text-lg text-muted-foreground">Your funds have been added to your account</p>
               </div>
               <Button asChild>
-                <Link href="/dashboard">Go to Dashboard</Link>
+                <Link href="/customer">Go to Dashboard</Link>
               </Button>
             </div>
           )}
